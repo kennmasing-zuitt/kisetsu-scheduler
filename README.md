@@ -18,7 +18,7 @@ and a per-hour **FullCalendar** schedule.
 
 - Next.js 16 (App Router, TypeScript)
 - Redux Toolkit 2 + RTK Query (GraphQL over `fetch`, no Apollo needed)
-- FullCalendar 7 (`@fullcalendar/react` — plugins are subpath imports in v7)
+- FullCalendar 7 (`@fullcalendar/react` + `@fullcalendar/react-scheduler` for resource views)
 
 ## Getting started
 
@@ -89,33 +89,53 @@ src/
 │  │  ├─ login/page.tsx
 │  │  └─ register/page.tsx
 │  └─ (protected)/             Signed-in route group
-│     ├─ layout.tsx            AuthGuard + Navbar
+│     ├─ layout.tsx            AuthGuard + Navbar + collapsible Sidebar
 │     ├─ page.tsx              Home
 │     ├─ users/page.tsx
 │     └─ schedule/page.tsx     Loads ScheduleCalendar client-side only
-├─ components/                 AuthForm, AuthGuard, GuestGuard, Navbar, Loader, ScheduleCalendar
+├─ components/                 AuthForm, AuthGuard, GuestGuard, Navbar, Sidebar, Loader, ScheduleCalendar
 ├─ graphql/operations.ts       All GraphQL documents
 ├─ lib/graphqlBaseQuery.ts     RTK Query base query (Bearer token, errors, auto sign-out)
 ├─ lib/mockGraphql.ts          Offline mock (NEXT_PUBLIC_MOCK_API=true)
-├─ store/                      makeStore, typed hooks, api slice, auth + schedule slices
+├─ store/                      makeStore, typed hooks, api slice, auth + schedule + ui slices
 └─ types/auth.ts
 ```
 
+## Layout
+
+The navbar holds the menu toggle, profile and Log out; page links live in a collapsible
+sidebar. The open/closed state is in `store/uiSlice.ts` and remembered in localStorage.
+On desktop the sidebar pushes the page; under 768px it slides over it with a backdrop and
+closes after you pick a page.
+
 ## The schedule
 
-`ScheduleCalendar` renders a `timeGridDay` view with `slotDuration="01:00:00"`
-(Day / Week / Month switcher in the toolbar):
+The Schedule page is a FullCalendar **resource time grid**: one column per massage
+therapist, 1-hour rows (Day / Week switcher).
 
-- drag across hours → prompt for a title → event added
-- drag or resize an event → updated
-- click an event → delete
+- **Day view:** `resources` is a function FullCalendar calls on every navigation
+  (`refetchResourcesOnNavigate`). It returns only therapists working that day, so a weekly
+  day off or one-off leave removes their column.
+- **Week view:** one set of columns spans the week, so off-days are greyed out with
+  per-therapist `businessHours`, and leave days with grey background events.
+- **Booking:** drag down a therapist's column. A free room is picked automatically and
+  you're asked for the client name. Drag or resize to move, or drag into another
+  therapist's column to reassign; click to cancel. Bookings can't overlap for the same
+  therapist or room, or land on a day the therapist is off.
+- **Roster panel:** toggle weekly days off and leave for the visible day; the columns update
+  straight away. A banner flags any booking assigned to a therapist who is off.
 
-Events live in `store/scheduleSlice.ts` (local only, seeded with two events for today).
-When the server gets a scheduler module, add `schedules` / `createSchedule` / … endpoints
-to `store/api.ts` and swap the slice actions for those mutations.
+Data lives in `store/scheduleSlice.ts` (mock therapists, rooms, bookings) and the rules in
+`lib/availability.ts`. When the backend has a scheduling module, back the `resources`
+function in `ScheduleCalendar.tsx` with a query such as `availableTherapists(date)` and move
+bookings into RTK Query endpoints.
+
+**License:** resource views are FullCalendar Premium (`@fullcalendar/react-scheduler`). The
+default `CC-Attribution-NonCommercial-NoDerivatives` key is for trials and non-commercial use;
+set `NEXT_PUBLIC_FULLCALENDAR_LICENSE_KEY` to a commercial key before using it in a business.
 
 ## Adding a page
 
 1. Create `src/app/(protected)/<name>/page.tsx` — it's automatically behind `AuthGuard`.
-2. Add a link in `src/components/Navbar.tsx`.
+2. Add it to `navItems` in `src/components/Sidebar.tsx`.
 3. Add any GraphQL operation to `operations.ts` and an endpoint in `store/api.ts`.
