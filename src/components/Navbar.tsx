@@ -1,39 +1,44 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useAppSelector } from "@/store/hooks";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { toggleSidebar } from "@/store/uiSlice";
+import { SIDEBAR_ID } from "./Sidebar";
 
-const links = [
-  { href: "/", label: "Home" },
-  { href: "/users", label: "Users" },
-  { href: "/schedule", label: "Schedule" },
-];
-
+/** Top bar: sidebar toggle + brand on the left, profile + logout on the right. */
 export default function Navbar() {
-  const pathname = usePathname();
+  const dispatch = useAppDispatch();
   const user = useAppSelector((s) => s.auth.user);
+  const sidebarOpen = useAppSelector((s) => s.ui.sidebarOpen);
 
   return (
     <header className="navbar">
+      <button
+        type="button"
+        className="icon-btn"
+        onClick={() => dispatch(toggleSidebar())}
+        aria-controls={SIDEBAR_ID}
+        aria-expanded={sidebarOpen}
+        aria-label={sidebarOpen ? "Hide menu" : "Show menu"}
+        title={sidebarOpen ? "Hide menu" : "Show menu"}
+      >
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+          strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+          <path d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+
       <Link href="/" className="navbar__brand">
         Boilerplate
       </Link>
-      <nav className="navbar__links">
-        {links.map((l) => (
-          <Link
-            key={l.href}
-            href={l.href}
-            className={pathname === l.href ? "navbar__link is-active" : "navbar__link"}
-          >
-            {l.label}
-          </Link>
-        ))}
-      </nav>
+
       <div className="navbar__user">
         {user && (
           <span className="navbar__who">
-            {user.name}
+            <span className="avatar" aria-hidden>
+              {user.name.charAt(0).toUpperCase()}
+            </span>
+            <span className="navbar__name">{user.name}</span>
             {user.role && <span className="badge">{user.role.name}</span>}
           </span>
         )}

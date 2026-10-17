@@ -4,12 +4,32 @@ import { useEffect, useRef } from "react";
 import { Provider } from "react-redux";
 import { makeStore, type AppStore } from "./index";
 import { hydrate, type AuthState } from "./authSlice";
+import { setSidebarOpen } from "./uiSlice";
 
-const STORAGE_KEY = "auth";
+const AUTH_KEY = "auth";
+const SIDEBAR_KEY = "sidebarOpen";
+
+function readJson<T>(key: string): T | null {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+function write(key: string, value: unknown) {
+  try {
+    if (value === null) localStorage.removeItem(key);
+    else localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* storage unavailable (private mode) — preference just won't persist */
+  }
+}
 
 /**
- * Creates the store once per tab, restores the saved session from localStorage,
- * and keeps localStorage in sync whenever the auth slice changes.
+ * Creates the store once per tab, restores the saved session and sidebar
+ * preference from localStorage, and keeps both in sync as they change.
  */
 export default function StoreProvider({ children }: { children: React.ReactNode }) {
   const storeRef = useRef<AppStore | null>(null);
@@ -18,31 +38,24 @@ export default function StoreProvider({ children }: { children: React.ReactNode 
   useEffect(() => {
     const store = storeRef.current!;
 
-    let saved: Pick<AuthState, "accessToken" | "user"> | null = null;
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      saved = raw ? JSON.parse(raw) : null;
-    } catch {
-      saved = null;
-    }
-    store.dispatch(hydrate(saved));
+    store.dispatch(hydrate(readJson<Pick<AuthState, "accessToken" | "user">>(AUTH_KEY)));
 
-    let last = store.getState().auth;
+    // Saved choice wins; otherwise open on desktop, closed on phones.
+    const savedSidebar = readJson<boolean>(SIDEBAR_KEY);
+    store.dispatch(
+      setSidebarOpen(savedSidebar ?? !window.matchMedia("(max-width: 767px)").matches),
+    );
+
+    let { auth: lastAuth, ui: lastUi } = store.getState();
     return store.subscribe(() => {
-      const { auth } = store.getState();
-      if (auth === last) return;
-      last = auth;
-      try {
-        if (auth.accessToken) {
-          localStorage.setItem(
-            STORAGE_KEY,
-            JSON.stringify({ accessToken: auth.accessToken, user: auth.user }),
-          );
-        } else {
-          localStorage.removeItem(STORAGE_KEY);
-        }
-      } catch {
-        /* storage unavailable (private mode) — session just won't persist */
+      const { auth, ui } = store.getState();
+      if (auth !== lastAuth) {
+        lastAuth = auth;
+        write(AUTH_KEY, auth.accessToken ? { accessToken: auth.accessToken, user: auth.user } : null);
+      }
+      if (ui !== lastUi) {
+        lastUi = ui;
+        write(SIDEBAR_KEY, ui.sidebarOpen);
       }
     });
   }, []);

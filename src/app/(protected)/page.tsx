@@ -5,7 +5,7 @@ import { useAppSelector } from "@/store/hooks";
 
 export default function HomePage() {
   const user = useAppSelector((s) => s.auth.user);
-  const eventCount = useAppSelector((s) => s.schedule.events.length);
+  const eventCount = useAppSelector((s) => s.schedule.bookings.length);
 
   return (
     <>
@@ -23,7 +23,7 @@ export default function HomePage() {
         <Link href="/schedule" className="card card--link">
           <h2>Schedule</h2>
           <p className="muted">
-            Per-hour calendar · {eventCount} event{eventCount === 1 ? "" : "s"}
+            Therapist schedule · {eventCount} booking{eventCount === 1 ? "" : "s"}
           </p>
         </Link>
       </div>
