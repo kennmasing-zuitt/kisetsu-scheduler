@@ -4,11 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { setSidebarOpen } from "@/store/uiSlice";
+// Below MOBILE_QUERY the sidebar overlays the page instead of pushing it.
+import { MOBILE_QUERY } from "@/lib/useMediaQuery";
 
 export const SIDEBAR_ID = "app-sidebar";
-
-/** Below this width the sidebar overlays the page instead of pushing it. */
-export const MOBILE_QUERY = "(max-width: 767px)";
 
 const icon = (d: string) => (
   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"

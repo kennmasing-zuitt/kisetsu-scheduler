@@ -14,6 +14,8 @@ import type {
 import interactionPlugin from "@fullcalendar/react/interaction";
 import classicThemePlugin from "@fullcalendar/react/themes/classic";
 import resourceTimeGridPlugin from "@fullcalendar/react-scheduler/resource-timegrid";
+// Needed for dayMinWidth (columns keep a minimum width and the grid scrolls sideways)
+import scrollGridPlugin from "@fullcalendar/react-scheduler/scrollgrid";
 import type { ResourceFuncInfo, ResourceInput } from "@fullcalendar/react-scheduler";
 
 import "@fullcalendar/react/skeleton.css";
@@ -21,7 +23,8 @@ import "@fullcalendar/react/themes/classic/theme.css";
 import "@fullcalendar/react/themes/classic/palette.css";
 
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { addBooking, removeBooking, updateBooking } from "@/store/scheduleSlice";
+import { updateBooking } from "@/store/scheduleSlice";
+import type { BookingDraft } from "./BookingDialog";
 import {
   CLOSING_TIME,
   OPENING_TIME,
@@ -31,6 +34,7 @@ import {
   toDateKey,
   workingWeekdays,
 } from "@/lib/availability";
+import { useIsMobile } from "@/lib/useMediaQuery";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -51,17 +55,31 @@ export interface VisibleRange {
  * - Day view: only therapists working that day get a column (off-days and leave remove it).
  * - Week view: columns can't change per day, so off-days are greyed out via businessHours
  *   and leave days via background events; bookings there are blocked.
- * - Drag across a column to book (a free room is picked automatically), drag/resize to move,
- *   click to cancel.
+ * - Drag down a column (10-minute steps) to open the booking dialog, click a booking to
+ *   edit or cancel it, drag/resize to move it.
+ * - Phones: Day view only, compact toolbar, columns keep a minimum width and the grid
+ *   scrolls sideways, and a shorter long-press starts a drag on touch screens.
  */
 export default function ScheduleCalendar({
   onRangeChange,
+  onOpenBooking,
 }: {
   onRangeChange?: (range: VisibleRange) => void;
+  /** Open the booking dialog for a new slot or an existing booking. */
+  onOpenBooking: (draft: BookingDraft) => void;
 }) {
   const dispatch = useAppDispatch();
   const { therapists, rooms, bookings } = useAppSelector((s) => s.schedule);
   const calendarRef = useRef<CalendarRef>(null);
+  const isMobile = useIsMobile();
+
+  // Week view is unusable on a phone (therapists x 7 days of columns), so switch to Day.
+  useEffect(() => {
+    const api = calendarRef.current?.getApi();
+    if (isMobile && api && api.view.type !== "resourceTimeGridDay") {
+      api.changeView("resourceTimeGridDay");
+    }
+  }, [isMobile]);
 
   const therapistById = useMemo(() => new Map(therapists.map((t) => [t.id, t])), [therapists]);
   const roomById = useMemo(() => new Map(rooms.map((r) => [r.id, r])), [rooms]);
@@ -132,32 +150,24 @@ export default function ScheduleCalendar({
     info.view.calendar.unselect();
     const therapistId = info.resource?.id;
     if (!therapistId) return;
-
-    const room = findFreeRoom(rooms, bookings, info.start, info.end);
-    if (!room) {
-      window.alert("No room is free at that time.");
-      return;
-    }
-    const client = window.prompt(`Client name (${room.name})`);
-    if (!client?.trim()) return;
-
-    dispatch(
-      addBooking({
-        client: client.trim(),
-        therapistId,
-        roomId: room.id,
-        start: info.start.toISOString(),
-        end: info.end.toISOString(),
-      }),
-    );
+    onOpenBooking({
+      therapistId,
+      start: info.start,
+      durationMin: Math.round((info.end.getTime() - info.start.getTime()) / 60000),
+    });
   }
 
   function handleEventClick({ event }: EventClickInfo) {
     if (event.display === "background") return;
     const booking = bookings.find((b) => b.id === event.id);
-    if (booking && window.confirm(`Cancel ${booking.client}'s booking?`)) {
-      dispatch(removeBooking(booking.id));
-    }
+    if (!booking) return;
+    const start = new Date(booking.start);
+    onOpenBooking({
+      bookingId: booking.id,
+      therapistId: booking.therapistId,
+      start,
+      durationMin: Math.round((Date.parse(booking.end) - start.getTime()) / 60000),
+    });
   }
 
   function handleEventChange({ event, revert }: EventChangeInfo) {
@@ -193,14 +203,20 @@ export default function ScheduleCalendar({
   return (
     <FullCalendar
       ref={calendarRef}
-      plugins={[resourceTimeGridPlugin, interactionPlugin, classicThemePlugin]}
+      plugins={[resourceTimeGridPlugin, scrollGridPlugin, interactionPlugin, classicThemePlugin]}
       schedulerLicenseKey={LICENSE_KEY}
       initialView="resourceTimeGridDay"
-      headerToolbar={{
-        start: "prev,next today",
-        center: "title",
-        end: "resourceTimeGridDay,resourceTimeGridWeek",
-      }}
+      headerToolbar={
+        isMobile
+          ? { start: "prev,next", center: "title", end: "today" }
+          : { start: "prev,next today", center: "title", end: "resourceTimeGridDay,resourceTimeGridWeek" }
+      }
+      // Short title on phones ("Sat, Oct 17") so the toolbar fits on one row
+      {...(isMobile ? { titleFormat: { weekday: "short", month: "short", day: "numeric" } } : {})}
+      // Columns never get narrower than this; the grid scrolls sideways instead
+      dayMinWidth={isMobile ? 110 : 100}
+      // Touch: hold 300ms (default 1s) before dragging a booking or selecting a slot
+      longPressDelay={300}
       buttons={{
         resourceTimeGridDay: { text: "Day" },
         resourceTimeGridWeek: { text: "Week" },
@@ -209,6 +225,7 @@ export default function ScheduleCalendar({
       refetchResourcesOnNavigate
       events={events}
       slotDuration="01:00:00"
+      snapDuration="00:10:00" // drag, move and resize in 10-minute steps
       slotMinTime="09:00:00"
       slotMaxTime="23:00:00"
       scrollTime="13:00:00"

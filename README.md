@@ -108,6 +108,14 @@ sidebar. The open/closed state is in `store/uiSlice.ts` and remembered in localS
 On desktop the sidebar pushes the page; under 768px it slides over it with a backdrop and
 closes after you pick a page.
 
+## Mobile
+
+Under 768px (`MOBILE_QUERY` in `src/lib/useMediaQuery.ts`): the sidebar overlays the page,
+the Schedule page shows Day view only with a compact toolbar, therapist columns keep a
+minimum width (`dayMinWidth`) and the grid scrolls sideways, touch drags start after a
+300ms hold, and the therapist roster starts collapsed. Check layouts in your browser's
+device toolbar or on a phone.
+
 ## The schedule
 
 The Schedule page is a FullCalendar **resource time grid**: one column per massage
@@ -118,10 +126,13 @@ therapist, 1-hour rows (Day / Week switcher).
   day off or one-off leave removes their column.
 - **Week view:** one set of columns spans the week, so off-days are greyed out with
   per-therapist `businessHours`, and leave days with grey background events.
-- **Booking:** drag down a therapist's column. A free room is picked automatically and
-  you're asked for the client name. Drag or resize to move, or drag into another
-  therapist's column to reassign; click to cancel. Bookings can't overlap for the same
-  therapist or room, or land on a day the therapist is off.
+- **Booking dialog:** drag down a therapist's column (10-minute steps) or press
+  **+ New booking** to open it; click a booking to edit or cancel it. Fields: client,
+  therapist, date, start, duration (presets like 1h 20m, or custom minutes) and room —
+  rooms already taken at that time are disabled. It won't save if the therapist is off or
+  double-booked, the room is taken, or the time is outside opening hours.
+- **Quick edits:** drag a booking to move it, drag its edge to resize, or drag it into another
+  therapist's column to reassign (the room is kept if still free, otherwise another is picked).
 - **Roster panel:** toggle weekly days off and leave for the visible day; the columns update
   straight away. A banner flags any booking assigned to a therapist who is off.
 

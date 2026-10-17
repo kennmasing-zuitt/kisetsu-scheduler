@@ -67,3 +67,42 @@ export function findFreeRoom(
   const ordered = [...preferred, ...rooms.filter((r) => r.id !== preferredRoomId)];
   return ordered.find((r) => isRoomFree(r.id, bookings, start, end, ignoreBookingId));
 }
+
+/** True when the therapist has no other booking overlapping [start, end). */
+export function isTherapistFree(
+  therapistId: string,
+  bookings: Booking[],
+  start: Date,
+  end: Date,
+  ignoreBookingId?: string,
+): boolean {
+  return !bookings.some(
+    (b) =>
+      b.id !== ignoreBookingId &&
+      b.therapistId === therapistId &&
+      overlaps(Date.parse(b.start), Date.parse(b.end), start.getTime(), end.getTime()),
+  );
+}
+
+const minutesOf = (hhmm: string) => {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+};
+
+/** True when [start, end) is on one day and inside OPENING_TIME–CLOSING_TIME. */
+export function isWithinOpeningHours(start: Date, end: Date): boolean {
+  if (toDateKey(start) !== toDateKey(new Date(end.getTime() - 1))) return false;
+  const s = start.getHours() * 60 + start.getMinutes();
+  const e = s + Math.round((end.getTime() - start.getTime()) / 60000);
+  return s >= minutesOf(OPENING_TIME) && e <= minutesOf(CLOSING_TIME);
+}
+
+/** Local time as "HH:MM", for <input type="time">. */
+export function toTimeValue(date: Date): string {
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+/** Combine "YYYY-MM-DD" + "HH:MM" into a local Date. */
+export function fromDateAndTime(date: string, time: string): Date {
+  return new Date(`${date}T${time}:00`);
+}
