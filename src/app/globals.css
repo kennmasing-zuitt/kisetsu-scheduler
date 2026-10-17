@@ -200,3 +200,52 @@ code { font-size: 0.9em; }
 }
 .legend { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 0.85rem; }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+
+/* Booking dialog (native <dialog>) */
+.dialog {
+  width: min(440px, calc(100vw - 32px)); padding: 0; border: 1px solid var(--border);
+  border-radius: var(--radius); background: var(--surface); color: var(--text);
+  box-shadow: 0 20px 40px rgb(16 24 40 / 25%);
+}
+.dialog::backdrop { background: rgb(0 0 0 / 40%); }
+.dialog__form { display: flex; flex-direction: column; gap: 12px; padding: 20px; }
+.dialog__header { display: flex; align-items: center; justify-content: space-between; }
+.dialog__header h2 { margin: 0; font-size: 1.15rem; }
+.dialog__summary { font-size: 0.85rem; }
+.dialog__problems { margin: 0; padding-left: 28px; }
+.dialog__footer { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.dialog__spacer { flex: 1; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.field select, .field output {
+  font: inherit; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--bg); color: var(--text);
+}
+.field--readonly output { border-style: dashed; color: var(--muted); }
+.btn--danger { background: transparent; color: var(--danger-text); border-color: var(--danger-text); }
+.btn--danger:hover { background: var(--danger-bg); }
+
+/* Collapsible roster header */
+.roster__heading { margin: 0; }
+.roster__toggle {
+  width: 100%; display: flex; align-items: center; gap: 8px; padding: 0; border: 0;
+  background: none; color: inherit; font: inherit; font-size: 1.1rem; font-weight: 600;
+  cursor: pointer; text-align: left;
+}
+.roster__count { font-size: 0.8rem; font-weight: 500; margin-left: auto; }
+.roster__chevron { transition: transform 0.15s ease; transform: rotate(-90deg); }
+.roster__chevron.is-open { transform: none; }
+.roster__body { display: flex; flex-direction: column; gap: 10px; }
+.roster__body[hidden] { display: none; }
+
+/* Phones: tighter page chrome so the calendar gets the width */
+@media (max-width: 767px) {
+  .page { padding: 16px 12px 32px; }
+  .page__header .btn--primary { width: 100%; }
+  .calendar-card { padding: 6px; }
+  .navbar { gap: 8px; padding: 0 12px; }
+  .navbar__user { gap: 8px; }
+  .navbar .badge { display: none; }
+  .dialog__form { padding: 16px; }
+  .dialog__footer { flex-wrap: wrap; }
+}
+@media (prefers-reduced-motion: reduce) { .roster__chevron { transition: none; } }
