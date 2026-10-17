@@ -1,0 +1,21 @@
+# Keep the build context small and secrets out of the image
+node_modules
+.next
+out
+.git
+.gitignore
+.DS_Store
+npm-debug.log*
+*.tsbuildinfo
+next-env.d.ts
+
+# Env files: NEXT_PUBLIC_* values are passed as build args instead
+.env
+.env.*
+!.env.example
+
+# Deployment files aren't needed inside the image
+Dockerfile
+docker-compose.yaml
+nginx.conf
+README.md

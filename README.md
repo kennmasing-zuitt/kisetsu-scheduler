@@ -31,6 +31,32 @@ npm run dev          # http://localhost:3000
 No backend yet? Set `NEXT_PUBLIC_MOCK_API=true` in `.env.local` — an in-browser mock
 answers the auth/users operations so you can click through every page.
 
+## Deploying with Docker (Droplet + shared Nginx proxy)
+
+Files: `Dockerfile` (multi-stage, Next.js standalone output, non-root), `docker-compose.yaml`,
+`nginx.conf` (server block for the shared proxy) and `.dockerignore`.
+
+1. **Once per Droplet**, the shared network the proxy and apps join:
+   `docker network create web` (skip if it exists).
+2. **Set the build-time values** in a `.env` next to `docker-compose.yaml`:
+   ```env
+   NEXT_PUBLIC_GRAPHQL_URL=https://api.example.com/graphql
+   NEXT_PUBLIC_MOCK_API=false
+   NEXT_PUBLIC_FULLCALENDAR_LICENSE_KEY=your-key
+   ```
+   `NEXT_PUBLIC_*` values are baked into the browser bundle during the build, so after
+   changing them run `docker compose up -d --build`, not just a restart.
+3. **Build and start:** `docker compose up -d --build`
+4. **Proxy:** copy `nginx.conf` into the proxy's `conf.d/` as `scheduling.conf`
+   (it serves `scheduling.masings.com` over HTTPS with the shared `masings-apps`
+   certificate), then `docker exec <nginx-proxy> nginx -t && docker exec <nginx-proxy> nginx -s reload`.
+   The domain needs a DNS A record pointing at the Droplet, and the certificate must
+   include `scheduling.masings.com`.
+
+The proxy reaches the app by its network alias `nextjs-redux-boilerplate-client:3000`
+(every project's service is named `app`, so the alias keeps them apart). With
+`output: "standalone"`, use `npm run dev` locally; `next start` prints a warning.
+
 ## How auth works
 
 ```mermaid
