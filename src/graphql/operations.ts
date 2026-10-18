@@ -13,63 +13,63 @@
  */
 
 export const USER_FIELDS = /* GraphQL */ `
-  fragment UserFields on User {
-    id
-    name
-    email
-    role {
-      id
-      name
+    fragment UserFields on User {
+        id
+        name
+        email
+        role {
+            id
+            name
+        }
+        permissions
+        createdAt
     }
-    permissions
-    createdAt
-  }
 `;
 
 export const REGISTER_MUTATION = /* GraphQL */ `
-  ${USER_FIELDS}
-  mutation Register($input: RegisterInput!) {
-    register(input: $input) {
-      accessToken
-      user {
-        ...UserFields
-      }
+    ${USER_FIELDS}
+    mutation Register($input: RegisterInput!) {
+        register(input: $input) {
+            accessToken
+            user {
+                ...UserFields
+            }
+        }
     }
-  }
 `;
 
 export const LOGIN_MUTATION = /* GraphQL */ `
-  ${USER_FIELDS}
-  mutation Login($input: LoginInput!) {
-    login(input: $input) {
-      accessToken
-      user {
-        ...UserFields
-      }
+    ${USER_FIELDS}
+    mutation Login($input: LoginInput!) {
+        login(input: $input) {
+            accessToken
+            user {
+                ...UserFields
+            }
+        }
     }
-  }
 `;
 
 export const LOGOUT_MUTATION = /* GraphQL */ `
-  mutation Logout {
-    logout
-  }
+    mutation Logout {
+        logout
+    }
 `;
 
 export const ME_QUERY = /* GraphQL */ `
-  ${USER_FIELDS}
-  query Me {
-    me {
-      ...UserFields
+    ${USER_FIELDS}
+    query Me {
+        me {
+            ...UserFields
+        }
     }
-  }
 `;
 
 export const USERS_QUERY = /* GraphQL */ `
-  ${USER_FIELDS}
-  query Users {
-    users {
-      ...UserFields
+    ${USER_FIELDS}
+    query Users {
+        users {
+            ...UserFields
+        }
     }
-  }
 `;

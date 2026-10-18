@@ -56,13 +56,13 @@ Files: `Dockerfile` (multi-stage, Next.js standalone output, non-root), `docker-
 1. **Once per Droplet**, the shared network the proxy and apps join:
    `docker network create web` (skip if it exists).
 2. **Set the build-time values** in a `.env` next to `docker-compose.yaml`:
-   ```env
-   NEXT_PUBLIC_GRAPHQL_URL=https://api.example.com/graphql
-   NEXT_PUBLIC_MOCK_API=false
-   NEXT_PUBLIC_FULLCALENDAR_LICENSE_KEY=your-key
-   ```
-   `NEXT_PUBLIC_*` values are baked into the browser bundle during the build, so after
-   changing them run `docker compose up -d --build`, not just a restart.
+    ```env
+    NEXT_PUBLIC_GRAPHQL_URL=https://api.example.com/graphql
+    NEXT_PUBLIC_MOCK_API=false
+    NEXT_PUBLIC_FULLCALENDAR_LICENSE_KEY=your-key
+    ```
+    `NEXT_PUBLIC_*` values are baked into the browser bundle during the build, so after
+    changing them run `docker compose up -d --build`, not just a restart.
 3. **Build and start:** `docker compose up -d --build`
 4. **Proxy:** copy `nginx.conf` into the proxy's `conf.d/` as `scheduling.conf`
    (it serves `scheduling.masings.com` over HTTPS with the shared `masings-apps`

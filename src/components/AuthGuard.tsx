@@ -12,23 +12,23 @@ import Loader from "./Loader";
  * /login (remembering where they were going), and refreshes the user via `me`.
  */
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const dispatch = useAppDispatch();
-  const { hydrated, accessToken } = useAppSelector((s) => s.auth);
+    const router = useRouter();
+    const pathname = usePathname();
+    const dispatch = useAppDispatch();
+    const { hydrated, accessToken } = useAppSelector((s) => s.auth);
 
-  const { data: me } = useMeQuery(undefined, { skip: !hydrated || !accessToken });
+    const { data: me } = useMeQuery(undefined, { skip: !hydrated || !accessToken });
 
-  useEffect(() => {
-    if (hydrated && !accessToken) {
-      router.replace(`/login?next=${encodeURIComponent(pathname)}`);
-    }
-  }, [hydrated, accessToken, pathname, router]);
+    useEffect(() => {
+        if (hydrated && !accessToken) {
+            router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+        }
+    }, [hydrated, accessToken, pathname, router]);
 
-  useEffect(() => {
-    if (me) dispatch(setUser(me));
-  }, [me, dispatch]);
+    useEffect(() => {
+        if (me) dispatch(setUser(me));
+    }, [me, dispatch]);
 
-  if (!hydrated || !accessToken) return <Loader label="Checking your session…" />;
-  return <>{children}</>;
+    if (!hydrated || !accessToken) return <Loader label="Checking your session…" />;
+    return <>{children}</>;
 }

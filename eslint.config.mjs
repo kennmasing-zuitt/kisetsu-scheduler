@@ -13,8 +13,8 @@ import prettier from "eslint-config-prettier/flat";
  * eslint-config-next) don't support ESLint 10 yet. Upgrade once they do.
  */
 export default defineConfig([
-  ...nextVitals,
-  ...nextTs,
-  prettier,
-  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts"]),
+    ...nextVitals,
+    ...nextTs,
+    prettier,
+    globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts"]),
 ]);

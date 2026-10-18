@@ -9,22 +9,22 @@ import type { GraphqlError } from "./graphqlBaseQuery";
 const now = new Date().toISOString();
 
 const users: User[] = [
-  {
-    id: "1",
-    name: "Admin User",
-    email: "admin@example.com",
-    role: { id: "r1", name: "ADMIN" },
-    permissions: ["users:read", "users:write"],
-    createdAt: now,
-  },
-  {
-    id: "2",
-    name: "Jane Doe",
-    email: "jane@example.com",
-    role: { id: "r2", name: "USER" },
-    permissions: [],
-    createdAt: now,
-  },
+    {
+        id: "1",
+        name: "Admin User",
+        email: "admin@example.com",
+        role: { id: "r1", name: "ADMIN" },
+        permissions: ["users:read", "users:write"],
+        createdAt: now,
+    },
+    {
+        id: "2",
+        name: "Jane Doe",
+        email: "jane@example.com",
+        role: { id: "r2", name: "USER" },
+        permissions: [],
+        createdAt: now,
+    },
 ];
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -34,45 +34,47 @@ const operationName = (document: string) => /(?:mutation|query)\s+(\w+)/.exec(do
 const authPayload = (user: User): AuthPayload => ({ accessToken: `mock-token-${user.id}`, user });
 
 export async function mockGraphql(
-  document: string,
-  variables: Record<string, unknown> | undefined,
-  token: string | null,
+    document: string,
+    variables: Record<string, unknown> | undefined,
+    token: string | null,
 ): Promise<{ data: unknown } | { error: GraphqlError }> {
-  await delay(300);
-  const input = (variables?.input ?? {}) as Record<string, string>;
+    await delay(300);
+    const input = (variables?.input ?? {}) as Record<string, string>;
 
-  switch (operationName(document)) {
-    case "Login": {
-      const user = users.find((u) => u.email === input.email) ?? users[0];
-      return { data: { login: authPayload(user) } };
+    switch (operationName(document)) {
+        case "Login": {
+            const user = users.find((u) => u.email === input.email) ?? users[0];
+            return { data: { login: authPayload(user) } };
+        }
+        case "Register": {
+            if (users.some((u) => u.email === input.email)) {
+                return {
+                    error: { message: "Email is already registered", code: "BAD_USER_INPUT" },
+                };
+            }
+            const user: User = {
+                id: String(users.length + 1),
+                name: input.name,
+                email: input.email,
+                role: { id: "r2", name: "USER" },
+                permissions: [],
+                createdAt: new Date().toISOString(),
+            };
+            users.push(user);
+            return { data: { register: authPayload(user) } };
+        }
+        case "Logout":
+            return { data: { logout: true } };
+        case "Me": {
+            const user = users.find((u) => `mock-token-${u.id}` === token);
+            return user
+                ? { data: { me: user } }
+                : { error: { message: "Not authenticated", code: "UNAUTHENTICATED" } };
+        }
+        case "Users":
+            if (!token) return { error: { message: "Not authenticated", code: "UNAUTHENTICATED" } };
+            return { data: { users } };
+        default:
+            return { error: { message: `Mock has no handler for this operation` } };
     }
-    case "Register": {
-      if (users.some((u) => u.email === input.email)) {
-        return { error: { message: "Email is already registered", code: "BAD_USER_INPUT" } };
-      }
-      const user: User = {
-        id: String(users.length + 1),
-        name: input.name,
-        email: input.email,
-        role: { id: "r2", name: "USER" },
-        permissions: [],
-        createdAt: new Date().toISOString(),
-      };
-      users.push(user);
-      return { data: { register: authPayload(user) } };
-    }
-    case "Logout":
-      return { data: { logout: true } };
-    case "Me": {
-      const user = users.find((u) => `mock-token-${u.id}` === token);
-      return user
-        ? { data: { me: user } }
-        : { error: { message: "Not authenticated", code: "UNAUTHENTICATED" } };
-    }
-    case "Users":
-      if (!token) return { error: { message: "Not authenticated", code: "UNAUTHENTICATED" } };
-      return { data: { users } };
-    default:
-      return { error: { message: `Mock has no handler for this operation` } };
-  }
 }

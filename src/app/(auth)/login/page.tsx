@@ -5,9 +5,9 @@ import AuthForm from "@/components/AuthForm";
 export const metadata: Metadata = { title: "Log in" };
 
 export default function LoginPage() {
-  return (
-    <Suspense>
-      <AuthForm mode="login" />
-    </Suspense>
-  );
+    return (
+        <Suspense>
+            <AuthForm mode="login" />
+        </Suspense>
+    );
 }

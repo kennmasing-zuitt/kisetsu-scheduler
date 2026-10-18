@@ -10,19 +10,19 @@ export const MOBILE_QUERY = "(max-width: 767px)";
  * render during hydration) assumes it doesn't match, then updates.
  */
 export function useMediaQuery(query: string): boolean {
-  const subscribe = useCallback(
-    (onChange: () => void) => {
-      const mql = window.matchMedia(query);
-      mql.addEventListener("change", onChange);
-      return () => mql.removeEventListener("change", onChange);
-    },
-    [query],
-  );
-  return useSyncExternalStore(
-    subscribe,
-    () => window.matchMedia(query).matches,
-    () => false,
-  );
+    const subscribe = useCallback(
+        (onChange: () => void) => {
+            const mql = window.matchMedia(query);
+            mql.addEventListener("change", onChange);
+            return () => mql.removeEventListener("change", onChange);
+        },
+        [query],
+    );
+    return useSyncExternalStore(
+        subscribe,
+        () => window.matchMedia(query).matches,
+        () => false,
+    );
 }
 
 export const useIsMobile = () => useMediaQuery(MOBILE_QUERY);

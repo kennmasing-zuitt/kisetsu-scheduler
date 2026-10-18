@@ -1,27 +1,27 @@
 services:
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      # Baked into the browser bundle at build time (see Dockerfile).
-      # Values come from your shell or a .env file next to this file; defaults are below.
-      args:
-        NEXT_PUBLIC_GRAPHQL_URL: ${NEXT_PUBLIC_GRAPHQL_URL:-https://api.example.com/graphql}
-        NEXT_PUBLIC_MOCK_API: ${NEXT_PUBLIC_MOCK_API:-false}
-        NEXT_PUBLIC_FULLCALENDAR_LICENSE_KEY: ${NEXT_PUBLIC_FULLCALENDAR_LICENSE_KEY:-CC-Attribution-NonCommercial-NoDerivatives}
-    image: nextjs-redux-boilerplate-client:latest
-    container_name: nextjs-redux-boilerplate-client
-    restart: unless-stopped
-    environment:
-      NODE_ENV: production
-    # no "ports:" - the Nginx container reaches it over the web network
-    networks:
-      default:
-      web:
-        # Unique name on the shared network. Every project's service is called "app",
-        # so the proxy must use this alias (see nginx.conf), not "app".
-        aliases: [nextjs-redux-boilerplate-client]
+    app:
+        build:
+            context: .
+            dockerfile: Dockerfile
+            # Baked into the browser bundle at build time (see Dockerfile).
+            # Values come from your shell or a .env file next to this file; defaults are below.
+            args:
+                NEXT_PUBLIC_GRAPHQL_URL: ${NEXT_PUBLIC_GRAPHQL_URL:-https://api.example.com/graphql}
+                NEXT_PUBLIC_MOCK_API: ${NEXT_PUBLIC_MOCK_API:-false}
+                NEXT_PUBLIC_FULLCALENDAR_LICENSE_KEY: ${NEXT_PUBLIC_FULLCALENDAR_LICENSE_KEY:-CC-Attribution-NonCommercial-NoDerivatives}
+        image: nextjs-redux-boilerplate-client:latest
+        container_name: nextjs-redux-boilerplate-client
+        restart: unless-stopped
+        environment:
+            NODE_ENV: production
+        # no "ports:" - the Nginx container reaches it over the web network
+        networks:
+            default:
+            web:
+                # Unique name on the shared network. Every project's service is called "app",
+                # so the proxy must use this alias (see nginx.conf), not "app".
+                aliases: [nextjs-redux-boilerplate-client]
 
 networks:
-  web:
-    external: true # shared with the Nginx proxy
+    web:
+        external: true # shared with the Nginx proxy

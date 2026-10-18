@@ -1,22 +1,22 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 
 export interface UiState {
-  sidebarOpen: boolean;
+    sidebarOpen: boolean;
 }
 
 const initialState: UiState = { sidebarOpen: true };
 
 const uiSlice = createSlice({
-  name: "ui",
-  initialState,
-  reducers: {
-    toggleSidebar(state) {
-      state.sidebarOpen = !state.sidebarOpen;
+    name: "ui",
+    initialState,
+    reducers: {
+        toggleSidebar(state) {
+            state.sidebarOpen = !state.sidebarOpen;
+        },
+        setSidebarOpen(state, action: PayloadAction<boolean>) {
+            state.sidebarOpen = action.payload;
+        },
     },
-    setSidebarOpen(state, action: PayloadAction<boolean>) {
-      state.sidebarOpen = action.payload;
-    },
-  },
 });
 
 export const { toggleSidebar, setSidebarOpen } = uiSlice.actions;
