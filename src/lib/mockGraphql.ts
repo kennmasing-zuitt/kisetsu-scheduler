@@ -29,8 +29,7 @@ const users: User[] = [
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-const operationName = (document: string) =>
-  /(?:mutation|query)\s+(\w+)/.exec(document)?.[1] ?? "";
+const operationName = (document: string) => /(?:mutation|query)\s+(\w+)/.exec(document)?.[1] ?? "";
 
 const authPayload = (user: User): AuthPayload => ({ accessToken: `mock-token-${user.id}`, user });
 

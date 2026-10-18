@@ -10,8 +10,17 @@ import { MOBILE_QUERY } from "@/lib/useMediaQuery";
 export const SIDEBAR_ID = "app-sidebar";
 
 const icon = (d: string) => (
-  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
-    strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+  <svg
+    viewBox="0 0 24 24"
+    width="18"
+    height="18"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden
+  >
     <path d={d} />
   </svg>
 );
@@ -22,7 +31,9 @@ const navItems = [
   {
     href: "/users",
     label: "Users",
-    icon: icon("M16 20v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 20v-1a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"),
+    icon: icon(
+      "M16 20v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 20v-1a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75",
+    ),
   },
   {
     href: "/schedule",
@@ -70,7 +81,11 @@ export default function Sidebar() {
 
       {/* Mobile-only backdrop (hidden by CSS on wider screens) */}
       {open && (
-        <div className="sidebar__backdrop" onClick={() => dispatch(setSidebarOpen(false))} aria-hidden />
+        <div
+          className="sidebar__backdrop"
+          onClick={() => dispatch(setSidebarOpen(false))}
+          aria-hidden
+        />
       )}
     </>
   );

@@ -49,7 +49,12 @@ export default function AuthForm({ mode }: { mode: Mode }) {
       {!isLogin && (
         <label className="field">
           <span>Name</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" />
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            autoComplete="name"
+          />
         </label>
       )}
       <label className="field">

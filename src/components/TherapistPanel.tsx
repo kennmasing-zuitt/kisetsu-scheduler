@@ -17,7 +17,11 @@ export default function TherapistPanel({ date }: { date: Date }) {
   const dispatch = useAppDispatch();
   const { therapists, rooms } = useAppSelector((s) => s.schedule);
   const dateKey = toDateKey(date);
-  const dateLabel = date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  const dateLabel = date.toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
 
   const isMobile = useIsMobile();
   const [expandedChoice, setExpandedChoice] = useState<boolean | null>(null);
@@ -71,7 +75,9 @@ export default function TherapistPanel({ date }: { date: Date }) {
                         className={off ? "weekday is-off" : "weekday"}
                         aria-pressed={off}
                         title={off ? `${label}: day off` : `${label}: working`}
-                        onClick={() => dispatch(toggleOffDay({ therapistId: t.id, weekday: i as Weekday }))}
+                        onClick={() =>
+                          dispatch(toggleOffDay({ therapistId: t.id, weekday: i as Weekday }))
+                        }
                       >
                         {label.charAt(0)}
                       </button>
