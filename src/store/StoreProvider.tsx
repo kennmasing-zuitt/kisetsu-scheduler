@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import { Provider } from "react-redux";
 import { makeStore, type AppStore } from "./index";
 import { hydrate, type AuthState } from "./authSlice";
@@ -32,12 +32,10 @@ function write(key: string, value: unknown) {
  * preference from localStorage, and keeps both in sync as they change.
  */
 export default function StoreProvider({ children }: { children: React.ReactNode }) {
-  const storeRef = useRef<AppStore | null>(null);
-  if (!storeRef.current) storeRef.current = makeStore();
+  // Lazy initializer: makeStore runs once per tab, and the same store is reused on re-renders
+  const [store] = useState<AppStore>(makeStore);
 
   useEffect(() => {
-    const store = storeRef.current!;
-
     store.dispatch(hydrate(readJson<Pick<AuthState, "accessToken" | "user">>(AUTH_KEY)));
 
     // Saved choice wins; otherwise open on desktop, closed on phones.
@@ -51,14 +49,17 @@ export default function StoreProvider({ children }: { children: React.ReactNode 
       const { auth, ui } = store.getState();
       if (auth !== lastAuth) {
         lastAuth = auth;
-        write(AUTH_KEY, auth.accessToken ? { accessToken: auth.accessToken, user: auth.user } : null);
+        write(
+          AUTH_KEY,
+          auth.accessToken ? { accessToken: auth.accessToken, user: auth.user } : null,
+        );
       }
       if (ui !== lastUi) {
         lastUi = ui;
         write(SIDEBAR_KEY, ui.sidebarOpen);
       }
     });
-  }, []);
+  }, [store]);
 
-  return <Provider store={storeRef.current}>{children}</Provider>;
+  return <Provider store={store}>{children}</Provider>;
 }

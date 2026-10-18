@@ -22,8 +22,16 @@ export default function Navbar() {
         aria-label={sidebarOpen ? "Hide menu" : "Show menu"}
         title={sidebarOpen ? "Hide menu" : "Show menu"}
       >
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
-          strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+        <svg
+          viewBox="0 0 24 24"
+          width="20"
+          height="20"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          aria-hidden
+        >
           <path d="M4 6h16M4 12h16M4 18h16" />
         </svg>
       </button>

@@ -209,7 +209,11 @@ export default function ScheduleCalendar({
       headerToolbar={
         isMobile
           ? { start: "prev,next", center: "title", end: "today" }
-          : { start: "prev,next today", center: "title", end: "resourceTimeGridDay,resourceTimeGridWeek" }
+          : {
+              start: "prev,next today",
+              center: "title",
+              end: "resourceTimeGridDay,resourceTimeGridWeek",
+            }
       }
       // Short title on phones ("Sat, Oct 17") so the toolbar fits on one row
       {...(isMobile ? { titleFormat: { weekday: "short", month: "short", day: "numeric" } } : {})}
