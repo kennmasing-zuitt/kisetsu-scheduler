@@ -88,7 +88,8 @@ function BookingForm({ draft, onDone }: { draft: BookingDraft; onDone: () => voi
   const [time, setTime] = useState(toTimeValue(draft.start));
   const [durationMin, setDurationMin] = useState(initialDuration);
   const [customDuration, setCustomDuration] = useState(!DURATION_PRESETS.includes(initialDuration));
-  const [roomId, setRoomId] = useState<string>(() => {
+  // The room the user picked (or the first free one when the dialog opened)
+  const [chosenRoomId, setRoomId] = useState<string>(() => {
     if (existing) return existing.roomId;
     const end = new Date(draft.start.getTime() + initialDuration * 60000);
     return findFreeRoom(rooms, bookings, draft.start, end)?.id ?? "";
@@ -102,13 +103,12 @@ function BookingForm({ draft, onDone }: { draft: BookingDraft; onDone: () => voi
   const therapist = therapists.find((t) => t.id === therapistId);
   const roomTaken = (id: string) => validTime && !isRoomFree(id, bookings, start, end, ignoreId);
 
-  // If the chosen room becomes unavailable after changing time, switch to a free one.
-  useEffect(() => {
-    if (!validTime || (roomId && !roomTaken(roomId))) return;
-    const free = findFreeRoom(rooms, bookings, start, end, { ignoreBookingId: ignoreId });
-    setRoomId(free?.id ?? "");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [start.getTime(), end.getTime()]);
+  // The room actually used: the chosen one while it's free; if a time change makes it
+  // taken, fall back to a free room (derived during render, so no effect is needed).
+  const roomId =
+    !validTime || (chosenRoomId && !roomTaken(chosenRoomId))
+      ? chosenRoomId
+      : (findFreeRoom(rooms, bookings, start, end, { ignoreBookingId: ignoreId })?.id ?? "");
 
   const problems: string[] = [];
   if (!validTime) problems.push("Enter a valid date, time and duration.");

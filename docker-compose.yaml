@@ -24,4 +24,4 @@ services:
 
 networks:
   web:
-    external: true                 # shared with the Nginx proxy
+    external: true # shared with the Nginx proxy

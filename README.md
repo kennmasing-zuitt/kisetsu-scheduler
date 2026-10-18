@@ -4,15 +4,15 @@ Next.js (App Router) + React + Redux Toolkit boilerplate that pairs with
 **express-typescript-graphql-boilerplate-server**. Includes auth pages, a users list,
 and a per-hour **FullCalendar** schedule.
 
-| Route       | Page                    | Access    |
-| ----------- | ----------------------- | --------- |
-| `/login`    | Login                   | Guests    |
-| `/register` | Register                | Guests    |
-| `/`         | Home                    | Signed in |
-| `/users`    | Users (`users` query)   | Signed in |
-| `/schedule` | FullCalendar, 1h slots  | Signed in |
-| `/logout`   | Signs out → `/login`    | Anyone    |
-| anything else | 404 Page Not Found    | Anyone    |
+| Route         | Page                   | Access    |
+| ------------- | ---------------------- | --------- |
+| `/login`      | Login                  | Guests    |
+| `/register`   | Register               | Guests    |
+| `/`           | Home                   | Signed in |
+| `/users`      | Users (`users` query)  | Signed in |
+| `/schedule`   | FullCalendar, 1h slots | Signed in |
+| `/logout`     | Signs out → `/login`   | Anyone    |
+| anything else | 404 Page Not Found     | Anyone    |
 
 ## Stack
 
@@ -30,6 +30,23 @@ npm run dev          # http://localhost:3000
 
 No backend yet? Set `NEXT_PUBLIC_MOCK_API=true` in `.env.local` — an in-browser mock
 answers the auth/users operations so you can click through every page.
+
+## Linting and formatting
+
+ESLint 9 (flat config in `eslint.config.mjs`: Next.js core-web-vitals + TypeScript rules,
+including the React Compiler checks from React Hooks v7) and Prettier (`.prettierrc.json`).
+`eslint-config-prettier` switches off ESLint rules that would clash with Prettier.
+
+```bash
+npm run lint          # report problems
+npm run lint:fix      # auto-fix what ESLint can
+npm run format        # rewrite files with Prettier
+npm run format:check  # fail if anything isn't formatted (for CI)
+```
+
+Editor: install the ESLint and Prettier extensions and turn on "format on save" with
+Prettier as the default formatter. Next.js 16 no longer runs ESLint during `next build`,
+so run `npm run lint` yourself or in CI.
 
 ## Deploying with Docker (Droplet + shared Nginx proxy)
 
@@ -86,6 +103,7 @@ sequenceDiagram
 
 The GraphQL documents are **anticipated** from a typical type-graphql auth + RBAC setup:
 
+<!-- prettier-ignore -->
 ```graphql
 mutation Register($input: RegisterInput!) { register(input: $input) { accessToken user { ...UserFields } } }
 mutation Login($input: LoginInput!)       { login(input: $input)    { accessToken user { ...UserFields } } }
