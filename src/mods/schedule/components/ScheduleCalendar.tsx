@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import type {
     CalendarRef,
@@ -16,7 +16,7 @@ import classicThemePlugin from "@fullcalendar/react/themes/classic";
 import resourceTimeGridPlugin from "@fullcalendar/react-scheduler/resource-timegrid";
 // Needed for dayMinWidth (columns keep a minimum width and the grid scrolls sideways)
 import scrollGridPlugin from "@fullcalendar/react-scheduler/scrollgrid";
-import type { ResourceFuncInfo, ResourceInput } from "@fullcalendar/react-scheduler";
+import type { ResourceInput } from "@fullcalendar/react-scheduler";
 
 import "@fullcalendar/react/skeleton.css";
 import "@fullcalendar/react/themes/classic/theme.css";
@@ -35,6 +35,7 @@ import {
     workingWeekdays,
 } from "@/mods/schedule/lib/availability";
 import { useIsMobile } from "@/lib/useMediaQuery";
+import type { Therapist } from "@/mods/schedule/types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -43,6 +44,21 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const LICENSE_KEY =
     process.env.NEXT_PUBLIC_FULLCALENDAR_LICENSE_KEY ??
     "CC-Attribution-NonCommercial-NoDerivatives";
+
+/** Therapists as calendar columns: in a single-day view, only those working that day. */
+function toResources(therapists: Therapist[], start: Date, end: Date): ResourceInput[] {
+    const isSingleDay = end.getTime() - start.getTime() <= DAY_MS;
+    const list = isSingleDay ? getWorkingTherapists(therapists, start) : therapists;
+    return list.map((t) => ({
+        id: t.id,
+        title: t.name,
+        businessHours: {
+            daysOfWeek: workingWeekdays(t),
+            startTime: OPENING_TIME,
+            endTime: CLOSING_TIME,
+        },
+    }));
+}
 
 export interface VisibleRange {
     start: Date;
@@ -85,32 +101,25 @@ export default function ScheduleCalendar({
     const therapistById = useMemo(() => new Map(therapists.map((t) => [t.id, t])), [therapists]);
     const roomById = useMemo(() => new Map(rooms.map((r) => [r.id, r])), [rooms]);
 
-    /**
-     * Called by FullCalendar on load and on every navigation (refetchResourcesOnNavigate).
-     * This is the function to back with a GraphQL query later.
-     */
-    const resources = useCallback(
-        async ({ start, end }: ResourceFuncInfo): Promise<ResourceInput[]> => {
-            if (!start || !end) return [];
-            const isSingleDay = end.getTime() - start.getTime() <= DAY_MS;
-            const list = isSingleDay ? getWorkingTherapists(therapists, start) : therapists;
-            return list.map((t) => ({
-                id: t.id,
-                title: t.name,
-                businessHours: {
-                    daysOfWeek: workingWeekdays(t),
-                    startTime: OPENING_TIME,
-                    endTime: CLOSING_TIME,
-                },
-            }));
-        },
-        [therapists],
-    );
+    // The dates on screen, kept in sync by datesSet. Starts as today (the initial Day view).
+    const [visible, setVisible] = useState(() => {
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+        return { start, end: new Date(start.getTime() + DAY_MS) };
+    });
 
-    // Off-days / leave were edited: ask FullCalendar for the columns again.
-    useEffect(() => {
-        calendarRef.current?.getApi().refetchResources();
-    }, [therapists]);
+    /**
+     * Therapist columns for the visible dates, recomputed when the dates or the roster change.
+     *
+     * Passed as a plain array on purpose: a resources *function* that answers asynchronously
+     * makes FullCalendar v7 update itself before it has mounted, which React reports as
+     * "Can't perform a React state update on a component that hasn't mounted yet".
+     * When therapists come from the API, fetch them with RTK Query and keep passing an array.
+     */
+    const resources = useMemo(
+        () => toResources(therapists, visible.start, visible.end),
+        [therapists, visible],
+    );
 
     const events = useMemo<EventInput[]>(() => {
         const bookingEvents: EventInput[] = bookings.map((b) => {
@@ -198,6 +207,12 @@ export default function ScheduleCalendar({
     }
 
     function handleDatesSet({ start, end, view }: DatesSetInfo) {
+        // Only update when the dates really changed, so re-renders don't loop
+        setVisible((prev) =>
+            prev.start.getTime() === start.getTime() && prev.end.getTime() === end.getTime()
+                ? prev
+                : { start, end },
+        );
         onRangeChange?.({ start, end, viewType: view.type });
     }
 
@@ -234,7 +249,6 @@ export default function ScheduleCalendar({
                 resourceTimeGridWeek: { text: "Week" },
             }}
             resources={resources}
-            refetchResourcesOnNavigate
             events={events}
             slotDuration="01:00:00"
             snapDuration="00:10:00" // drag, move and resize in 10-minute steps
