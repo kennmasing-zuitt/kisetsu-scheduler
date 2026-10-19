@@ -19,8 +19,9 @@ const authSlice = createSlice({
             state.user = action.payload?.user ?? null;
             state.hydrated = true;
         },
+        /** Stores the register/login result; the server calls the access token `token`. */
         setCredentials(state, action: PayloadAction<AuthPayload>) {
-            state.accessToken = action.payload.accessToken;
+            state.accessToken = action.payload.token;
             state.user = action.payload.user;
         },
         setUser(state, action: PayloadAction<User>) {

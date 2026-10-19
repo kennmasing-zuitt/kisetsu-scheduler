@@ -1,9 +1,12 @@
 import type { BaseQueryFn } from "@reduxjs/toolkit/query";
 import { clearCredentials } from "@/store/authSlice";
+import type { TypedDocumentString } from "@/gql/graphql";
 import { mockGraphql } from "./mockGraphql";
 
 export interface GraphqlRequest {
-    document: string;
+    /** A codegen document from src/graphql/operations.ts */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    document: TypedDocumentString<any, any>;
     variables?: Record<string, unknown>;
 }
 
@@ -32,8 +35,8 @@ export const graphqlBaseQuery: BaseQueryFn<GraphqlRequest, unknown, GraphqlError
     const token = (api.getState() as RootStateLike).auth.accessToken;
 
     const result = USE_MOCK
-        ? await mockGraphql(document, variables, token)
-        : await sendRequest(document, variables, token, api.signal);
+        ? await mockGraphql(document.toString(), variables, token)
+        : await sendRequest(document.toString(), variables, token, api.signal);
 
     // Token expired or revoked: drop the session so AuthGuard sends the user to /login.
     if ("error" in result && result.error.code === "UNAUTHENTICATED" && token) {
