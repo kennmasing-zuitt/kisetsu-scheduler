@@ -1,6 +1,6 @@
-import AuthGuard from "@/components/AuthGuard";
-import Navbar from "@/components/Navbar";
-import Sidebar from "@/components/Sidebar";
+import AuthGuard from "@/mods/auth/components/AuthGuard";
+import Navbar from "@/components/layout/Navbar";
+import Sidebar from "@/components/layout/Sidebar";
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
     return (

@@ -1,7 +1,7 @@
 "use client";
 
-import { useGetUsersQuery } from "@/store/api";
-import Loader from "@/components/Loader";
+import { useGetUsersQuery } from "@/mods/users/usersApi";
+import Loader from "@/components/ui/Loader";
 import type { GraphqlError } from "@/lib/graphqlBaseQuery";
 
 export default function UsersPage() {

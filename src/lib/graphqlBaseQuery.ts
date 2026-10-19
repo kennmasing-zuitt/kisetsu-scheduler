@@ -1,10 +1,10 @@
 import type { BaseQueryFn } from "@reduxjs/toolkit/query";
-import { clearCredentials } from "@/store/authSlice";
+import { clearCredentials } from "@/mods/auth/authSlice";
 import type { TypedDocumentString } from "@/gql/graphql";
-import { mockGraphql } from "./mockGraphql";
+import { mockGraphql } from "./mocks/mockGraphql";
 
 export interface GraphqlRequest {
-    /** A codegen document from src/graphql/operations.ts */
+    /** A generated `<Name>Document` from @/gql/graphql */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     document: TypedDocumentString<any, any>;
     variables?: Record<string, unknown>;

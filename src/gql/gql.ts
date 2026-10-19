@@ -13,24 +13,16 @@ import * as types from "./graphql";
  * Learn more about it here: https://the-guild.dev/graphql/codegen/plugins/presets/preset-client#reducing-bundle-size
  */
 type Documents = {
-    "\n    fragment UserFields on User {\n        id\n        name\n        email\n        role {\n            id\n            name\n        }\n        extraPerms\n        createdAt\n    }\n": typeof types.UserFieldsFragmentDoc;
-    "\n    mutation Register($input: RegisterInput!) {\n        register(input: $input) {\n            token\n            user {\n                ...UserFields\n            }\n        }\n    }\n": typeof types.RegisterDocument;
-    "\n    mutation Login($input: LoginInput!) {\n        login(input: $input) {\n            token\n            user {\n                ...UserFields\n            }\n        }\n    }\n": typeof types.LoginDocument;
-    "\n    mutation Logout {\n        logout\n    }\n": typeof types.LogoutDocument;
-    "\n    query Me {\n        me {\n            ...UserFields\n        }\n    }\n": typeof types.MeDocument;
-    "\n    query Users {\n        users {\n            data {\n                ...UserFields\n            }\n            page\n            limit\n            total\n            totalPages\n        }\n    }\n": typeof types.UsersDocument;
+    "mutation Register($input: RegisterInput!) {\n  register(input: $input) {\n    token\n    user {\n      ...UserFields\n    }\n  }\n}\n\nmutation Login($input: LoginInput!) {\n  login(input: $input) {\n    token\n    user {\n      ...UserFields\n    }\n  }\n}\n\nmutation Logout {\n  logout\n}\n\nquery Me {\n  me {\n    ...UserFields\n  }\n}": typeof types.RegisterDocument;
+    "fragment UserFields on User {\n  id\n  name\n  email\n  role {\n    id\n    name\n  }\n  extraPerms\n  createdAt\n}": typeof types.UserFieldsFragmentDoc;
+    "query Users {\n  users {\n    data {\n      ...UserFields\n    }\n    page\n    limit\n    total\n    totalPages\n  }\n}": typeof types.UsersDocument;
 };
 const documents: Documents = {
-    "\n    fragment UserFields on User {\n        id\n        name\n        email\n        role {\n            id\n            name\n        }\n        extraPerms\n        createdAt\n    }\n":
-        types.UserFieldsFragmentDoc,
-    "\n    mutation Register($input: RegisterInput!) {\n        register(input: $input) {\n            token\n            user {\n                ...UserFields\n            }\n        }\n    }\n":
+    "mutation Register($input: RegisterInput!) {\n  register(input: $input) {\n    token\n    user {\n      ...UserFields\n    }\n  }\n}\n\nmutation Login($input: LoginInput!) {\n  login(input: $input) {\n    token\n    user {\n      ...UserFields\n    }\n  }\n}\n\nmutation Logout {\n  logout\n}\n\nquery Me {\n  me {\n    ...UserFields\n  }\n}":
         types.RegisterDocument,
-    "\n    mutation Login($input: LoginInput!) {\n        login(input: $input) {\n            token\n            user {\n                ...UserFields\n            }\n        }\n    }\n":
-        types.LoginDocument,
-    "\n    mutation Logout {\n        logout\n    }\n": types.LogoutDocument,
-    "\n    query Me {\n        me {\n            ...UserFields\n        }\n    }\n":
-        types.MeDocument,
-    "\n    query Users {\n        users {\n            data {\n                ...UserFields\n            }\n            page\n            limit\n            total\n            totalPages\n        }\n    }\n":
+    "fragment UserFields on User {\n  id\n  name\n  email\n  role {\n    id\n    name\n  }\n  extraPerms\n  createdAt\n}":
+        types.UserFieldsFragmentDoc,
+    "query Users {\n  users {\n    data {\n      ...UserFields\n    }\n    page\n    limit\n    total\n    totalPages\n  }\n}":
         types.UsersDocument,
 };
 
@@ -38,37 +30,19 @@ const documents: Documents = {
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-    source: "\n    fragment UserFields on User {\n        id\n        name\n        email\n        role {\n            id\n            name\n        }\n        extraPerms\n        createdAt\n    }\n",
-): typeof import("./graphql").UserFieldsFragmentDoc;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(
-    source: "\n    mutation Register($input: RegisterInput!) {\n        register(input: $input) {\n            token\n            user {\n                ...UserFields\n            }\n        }\n    }\n",
+    source: "mutation Register($input: RegisterInput!) {\n  register(input: $input) {\n    token\n    user {\n      ...UserFields\n    }\n  }\n}\n\nmutation Login($input: LoginInput!) {\n  login(input: $input) {\n    token\n    user {\n      ...UserFields\n    }\n  }\n}\n\nmutation Logout {\n  logout\n}\n\nquery Me {\n  me {\n    ...UserFields\n  }\n}",
 ): typeof import("./graphql").RegisterDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-    source: "\n    mutation Login($input: LoginInput!) {\n        login(input: $input) {\n            token\n            user {\n                ...UserFields\n            }\n        }\n    }\n",
-): typeof import("./graphql").LoginDocument;
+    source: "fragment UserFields on User {\n  id\n  name\n  email\n  role {\n    id\n    name\n  }\n  extraPerms\n  createdAt\n}",
+): typeof import("./graphql").UserFieldsFragmentDoc;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-    source: "\n    mutation Logout {\n        logout\n    }\n",
-): typeof import("./graphql").LogoutDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(
-    source: "\n    query Me {\n        me {\n            ...UserFields\n        }\n    }\n",
-): typeof import("./graphql").MeDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(
-    source: "\n    query Users {\n        users {\n            data {\n                ...UserFields\n            }\n            page\n            limit\n            total\n            totalPages\n        }\n    }\n",
+    source: "query Users {\n  users {\n    data {\n      ...UserFields\n    }\n    page\n    limit\n    total\n    totalPages\n  }\n}",
 ): typeof import("./graphql").UsersDocument;
 
 export function graphql(source: string) {

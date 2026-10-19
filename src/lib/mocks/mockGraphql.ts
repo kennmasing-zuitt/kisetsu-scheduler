@@ -1,5 +1,5 @@
-import type { AuthPayload, User } from "@/types/auth";
-import type { GraphqlError } from "./graphqlBaseQuery";
+import type { AuthPayload, User } from "@/mods/auth/types";
+import type { GraphqlError } from "@/lib/graphqlBaseQuery";
 
 /**
  * In-browser stand-in for the GraphQL server, enabled with NEXT_PUBLIC_MOCK_API=true.
