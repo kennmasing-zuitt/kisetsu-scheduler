@@ -2,9 +2,10 @@
 
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import Loader from "@/components/Loader";
-import { api, useLogoutMutation } from "@/store/api";
-import { clearCredentials } from "@/store/authSlice";
+import Loader from "@/components/ui/Loader";
+import { baseApi } from "@/store/baseApi";
+import { useLogoutMutation } from "@/mods/auth/authApi";
+import { clearCredentials } from "@/mods/auth/authSlice";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 
 /**
@@ -31,7 +32,7 @@ export default function LogoutPage() {
                 }
             }
             dispatch(clearCredentials());
-            dispatch(api.util.resetApiState());
+            dispatch(baseApi.util.resetApiState());
             router.replace("/login");
         })();
     }, [hydrated, accessToken, logout, dispatch, router]);

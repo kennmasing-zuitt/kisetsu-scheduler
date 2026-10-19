@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { addBooking, removeBooking, updateBooking } from "@/store/scheduleSlice";
+import { addBooking, removeBooking, updateBooking } from "@/mods/schedule/scheduleSlice";
 import {
     CLOSING_TIME,
     OPENING_TIME,
@@ -14,7 +14,7 @@ import {
     isWithinOpeningHours,
     toDateKey,
     toTimeValue,
-} from "@/lib/availability";
+} from "@/mods/schedule/lib/availability";
 
 /** What the dialog opens with: a new slot, or an existing booking to edit. */
 export interface BookingDraft {

@@ -23,7 +23,7 @@ import "@fullcalendar/react/themes/classic/theme.css";
 import "@fullcalendar/react/themes/classic/palette.css";
 
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { updateBooking } from "@/store/scheduleSlice";
+import { updateBooking } from "@/mods/schedule/scheduleSlice";
 import type { BookingDraft } from "./BookingDialog";
 import {
     CLOSING_TIME,
@@ -33,7 +33,7 @@ import {
     isTherapistWorking,
     toDateKey,
     workingWeekdays,
-} from "@/lib/availability";
+} from "@/mods/schedule/lib/availability";
 import { useIsMobile } from "@/lib/useMediaQuery";
 
 const DAY_MS = 24 * 60 * 60 * 1000;

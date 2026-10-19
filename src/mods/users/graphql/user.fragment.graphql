@@ -1,0 +1,12 @@
+# Shared user shape. Used by auth (register/login/me) and users (list).
+fragment UserFields on User {
+    id
+    name
+    email
+    role {
+        id
+        name
+    }
+    extraPerms
+    createdAt
+}

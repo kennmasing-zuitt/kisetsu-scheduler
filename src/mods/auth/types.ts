@@ -1,6 +1,6 @@
 /**
  * App-facing auth types, derived from the codegen output in src/gql.
- * Don't hand-edit shapes here: change the documents in src/graphql/operations.ts
+ * Don't hand-edit shapes here: change mods/auth/graphql/auth.graphql (or users/graphql/user.fragment.graphql)
  * and run `npm run codegen`.
  */
 import type { RegisterMutation, UserFieldsFragment } from "@/gql/graphql";

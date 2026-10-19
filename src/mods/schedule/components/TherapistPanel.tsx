@@ -2,9 +2,9 @@
 
 import { useId, useState } from "react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { toggleLeave, toggleOffDay } from "@/store/scheduleSlice";
-import { WEEKDAY_LABELS, isTherapistWorking, toDateKey } from "@/lib/availability";
-import type { Weekday } from "@/types/schedule";
+import { toggleLeave, toggleOffDay } from "@/mods/schedule/scheduleSlice";
+import { WEEKDAY_LABELS, isTherapistWorking, toDateKey } from "@/mods/schedule/lib/availability";
+import type { Weekday } from "@/mods/schedule/types";
 import { useIsMobile } from "@/lib/useMediaQuery";
 
 /**

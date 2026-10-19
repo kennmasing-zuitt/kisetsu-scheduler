@@ -1,4 +1,4 @@
-import type { Booking, Room, Therapist, Weekday } from "@/types/schedule";
+import type { Booking, Room, Therapist, Weekday } from "@/mods/schedule/types";
 
 /**
  * Availability rules in one place. When the backend has a scheduling module,

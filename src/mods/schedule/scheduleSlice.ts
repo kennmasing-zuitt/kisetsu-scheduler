@@ -1,5 +1,5 @@
 import { createSlice, nanoid, type PayloadAction } from "@reduxjs/toolkit";
-import type { Booking, Room, Therapist, Weekday } from "@/types/schedule";
+import type { Booking, Room, Therapist, Weekday } from "@/mods/schedule/types";
 
 export interface ScheduleState {
     therapists: Therapist[];
@@ -15,7 +15,7 @@ const todayAt = (h: number, m = 0) => {
 
 /**
  * Mock data, kept local for now. When the server gets a scheduler module, load
- * therapists / rooms / bookings through RTK Query endpoints in store/api.ts.
+ * therapists / rooms / bookings through RTK Query endpoints in mods/schedule/scheduleApi.ts (via baseApi.injectEndpoints).
  */
 const initialState: ScheduleState = {
     therapists: [

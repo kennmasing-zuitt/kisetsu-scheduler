@@ -3,9 +3,9 @@
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { useMeQuery } from "@/store/api";
-import { setUser } from "@/store/authSlice";
-import Loader from "./Loader";
+import { useMeQuery } from "@/mods/auth/authApi";
+import { setUser } from "@/mods/auth/authSlice";
+import Loader from "@/components/ui/Loader";
 
 /**
  * Wraps protected pages. Waits for the saved session to load, sends guests to

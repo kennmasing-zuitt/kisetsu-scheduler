@@ -32,15 +32,6 @@ export type RegisterInput = {
     password: string;
 };
 
-export type UserFieldsFragment = {
-    id: string;
-    name: string;
-    email: string;
-    extraPerms: Array<Permission>;
-    createdAt: string;
-    role: { id: string; name: string };
-};
-
 export type RegisterMutationVariables = Exact<{
     input: RegisterInput;
 }>;
@@ -92,6 +83,15 @@ export type MeQuery = {
         createdAt: string;
         role: { id: string; name: string };
     };
+};
+
+export type UserFieldsFragment = {
+    id: string;
+    name: string;
+    email: string;
+    extraPerms: Array<Permission>;
+    createdAt: string;
+    role: { id: string; name: string };
 };
 
 export type UsersQueryVariables = Exact<{ [key: string]: never }>;

@@ -2,15 +2,19 @@
 
 import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import Loader from "@/components/Loader";
-import TherapistPanel from "@/components/TherapistPanel";
-import BookingDialog, { type BookingDraft } from "@/components/BookingDialog";
-import type { VisibleRange } from "@/components/ScheduleCalendar";
+import Loader from "@/components/ui/Loader";
+import TherapistPanel from "@/mods/schedule/components/TherapistPanel";
+import BookingDialog, { type BookingDraft } from "@/mods/schedule/components/BookingDialog";
+import type { VisibleRange } from "@/mods/schedule/components/ScheduleCalendar";
 import { useAppSelector } from "@/store/hooks";
-import { getWorkingTherapists, isTherapistWorking, toDateKey } from "@/lib/availability";
+import {
+    getWorkingTherapists,
+    isTherapistWorking,
+    toDateKey,
+} from "@/mods/schedule/lib/availability";
 
 // FullCalendar touches the DOM, so render it on the client only.
-const ScheduleCalendar = dynamic(() => import("@/components/ScheduleCalendar"), {
+const ScheduleCalendar = dynamic(() => import("@/mods/schedule/components/ScheduleCalendar"), {
     ssr: false,
     loading: () => <Loader label="Loading calendar…" />,
 });

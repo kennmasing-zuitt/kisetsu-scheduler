@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAppSelector } from "@/store/hooks";
-import Loader from "./Loader";
+import Loader from "@/components/ui/Loader";
 
 /** Wraps login/register: signed-in users are sent home instead. */
 export default function GuestGuard({ children }: { children: React.ReactNode }) {

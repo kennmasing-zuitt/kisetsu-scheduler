@@ -3,9 +3,9 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useLoginMutation, useRegisterMutation } from "@/store/api";
+import { useLoginMutation, useRegisterMutation } from "@/mods/auth/authApi";
 import { useAppDispatch } from "@/store/hooks";
-import { setCredentials } from "@/store/authSlice";
+import { setCredentials } from "@/mods/auth/authSlice";
 import type { GraphqlError } from "@/lib/graphqlBaseQuery";
 
 type Mode = "login" | "register";

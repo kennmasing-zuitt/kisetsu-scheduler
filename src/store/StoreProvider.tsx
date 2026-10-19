@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Provider } from "react-redux";
 import { makeStore, type AppStore } from "./index";
-import { hydrate, type AuthState } from "./authSlice";
+import { hydrate, type AuthState } from "@/mods/auth/authSlice";
 import { setSidebarOpen } from "./uiSlice";
 
 const AUTH_KEY = "auth";
