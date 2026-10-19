@@ -14,7 +14,7 @@ const users: User[] = [
         name: "Admin User",
         email: "admin@example.com",
         role: { id: "r1", name: "ADMIN" },
-        permissions: ["users:read", "users:write"],
+        extraPerms: ["readUsers"],
         createdAt: now,
     },
     {
@@ -22,7 +22,7 @@ const users: User[] = [
         name: "Jane Doe",
         email: "jane@example.com",
         role: { id: "r2", name: "USER" },
-        permissions: [],
+        extraPerms: [],
         createdAt: now,
     },
 ];
@@ -31,7 +31,7 @@ const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const operationName = (document: string) => /(?:mutation|query)\s+(\w+)/.exec(document)?.[1] ?? "";
 
-const authPayload = (user: User): AuthPayload => ({ accessToken: `mock-token-${user.id}`, user });
+const authPayload = (user: User): AuthPayload => ({ token: `mock-token-${user.id}`, user });
 
 export async function mockGraphql(
     document: string,
@@ -57,7 +57,7 @@ export async function mockGraphql(
                 name: input.name,
                 email: input.email,
                 role: { id: "r2", name: "USER" },
-                permissions: [],
+                extraPerms: [],
                 createdAt: new Date().toISOString(),
             };
             users.push(user);
@@ -73,7 +73,11 @@ export async function mockGraphql(
         }
         case "Users":
             if (!token) return { error: { message: "Not authenticated", code: "UNAUTHENTICATED" } };
-            return { data: { users } };
+            return {
+                data: {
+                    users: { data: users, page: 1, limit: 20, total: users.length, totalPages: 1 },
+                },
+            };
         default:
             return { error: { message: `Mock has no handler for this operation` } };
     }

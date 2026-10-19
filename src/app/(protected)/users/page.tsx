@@ -5,7 +5,8 @@ import Loader from "@/components/Loader";
 import type { GraphqlError } from "@/lib/graphqlBaseQuery";
 
 export default function UsersPage() {
-    const { data: users, isLoading, error, refetch, isFetching } = useGetUsersQuery();
+    const { data: userPage, isLoading, error, refetch, isFetching } = useGetUsersQuery();
+    const users = userPage?.data;
 
     return (
         <>
@@ -50,7 +51,7 @@ export default function UsersPage() {
                                             "—"
                                         )}
                                     </td>
-                                    <td>{u.permissions.length ? u.permissions.join(", ") : "—"}</td>
+                                    <td>{u.extraPerms.length ? u.extraPerms.join(", ") : "—"}</td>
                                     <td>{new Date(u.createdAt).toLocaleDateString()}</td>
                                 </tr>
                             ))}

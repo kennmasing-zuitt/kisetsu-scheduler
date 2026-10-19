@@ -1,18 +1,15 @@
+import { graphql } from "@/gql";
+
 /**
- * GraphQL documents for express-typescript-graphql-boilerplate-server.
+ * Every GraphQL operation the client sends, for express-typescript-graphql-boilerplate-server.
  *
- * These are ANTICIPATED shapes based on a typical type-graphql auth + RBAC setup:
- *   - register / login return an AuthPayload { accessToken, user }
- *   - logout returns Boolean
- *   - me returns the current User
- *   - users returns [User] (admin-only on the server via RBAC)
- *
- * If your resolver names, input types, or User fields differ, change them HERE
- * (and the matching types in src/types/auth.ts). Nothing else in the app
- * hardcodes field names.
+ * After adding or changing one, run `npm run codegen` (server must be running). It checks each
+ * document against the live schema, failing on unknown fields, and regenerates src/gql/
+ * with the typed documents and their result/variable types.
+ * Use the server's real field names here; rename in components if you want different ones.
  */
 
-export const USER_FIELDS = /* GraphQL */ `
+export const USER_FIELDS = graphql(`
     fragment UserFields on User {
         id
         name
@@ -21,55 +18,57 @@ export const USER_FIELDS = /* GraphQL */ `
             id
             name
         }
-        permissions
+        extraPerms
         createdAt
     }
-`;
+`);
 
-export const REGISTER_MUTATION = /* GraphQL */ `
-    ${USER_FIELDS}
+export const REGISTER_MUTATION = graphql(`
     mutation Register($input: RegisterInput!) {
         register(input: $input) {
-            accessToken
+            token
             user {
                 ...UserFields
             }
         }
     }
-`;
+`);
 
-export const LOGIN_MUTATION = /* GraphQL */ `
-    ${USER_FIELDS}
+export const LOGIN_MUTATION = graphql(`
     mutation Login($input: LoginInput!) {
         login(input: $input) {
-            accessToken
+            token
             user {
                 ...UserFields
             }
         }
     }
-`;
+`);
 
-export const LOGOUT_MUTATION = /* GraphQL */ `
+export const LOGOUT_MUTATION = graphql(`
     mutation Logout {
         logout
     }
-`;
+`);
 
-export const ME_QUERY = /* GraphQL */ `
-    ${USER_FIELDS}
+export const ME_QUERY = graphql(`
     query Me {
         me {
             ...UserFields
         }
     }
-`;
+`);
 
-export const USERS_QUERY = /* GraphQL */ `
-    ${USER_FIELDS}
+export const USERS_QUERY = graphql(`
     query Users {
         users {
-            ...UserFields
+            data {
+                ...UserFields
+            }
+            page
+            limit
+            total
+            totalPages
         }
     }
-`;
+`);
