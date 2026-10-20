@@ -4,9 +4,9 @@
     "private": true,
     "description": "Next.js + React + Redux Toolkit boilerplate with FullCalendar, wired for the express-typescript-graphql-boilerplate-server auth API",
     "scripts": {
-        "dev": "next dev",
+        "dev": "next dev -p 2400",
         "build": "next build",
-        "start": "next start",
+        "start": "next start -p 2400",
         "typecheck": "tsc --noEmit",
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",

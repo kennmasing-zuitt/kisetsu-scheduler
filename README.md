@@ -25,7 +25,7 @@ and a per-hour **FullCalendar** schedule.
 ```bash
 cp .env.example .env.local
 npm install
-npm run dev          # http://localhost:3000
+npm run dev          # http://localhost:2400
 ```
 
 No backend yet? Set `NEXT_PUBLIC_MOCK_API=true` in `.env.local` — an in-browser mock
