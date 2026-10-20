@@ -57,7 +57,7 @@ Files: `Dockerfile` (multi-stage, Next.js standalone output, non-root), `docker-
    `docker network create web` (skip if it exists).
 2. **Set the build-time values** in a `.env` next to `docker-compose.yaml`:
     ```env
-    NEXT_PUBLIC_GRAPHQL_URL=https://api.example.com/graphql
+    NEXT_PUBLIC_GRAPHQL_URL=https://scheduling-api.masings.com/graphql
     NEXT_PUBLIC_MOCK_API=false
     NEXT_PUBLIC_FULLCALENDAR_LICENSE_KEY=your-key
     ```
