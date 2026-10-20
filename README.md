@@ -137,7 +137,8 @@ src/
 │     ├─ page.tsx              Home
 │     ├─ users/page.tsx
 │     ├─ schedule/page.tsx     Loads ScheduleCalendar client-side only
-│     └─ manage/page.tsx       Therapists & rooms: add, edit, delete
+│     ├─ manage/page.tsx       Therapists, rooms & services (with price history)
+│     └─ reports/page.tsx      Weekly / monthly / annual sales reports
 ├─ mods/                       One folder per module (feature): its components, GraphQL, API, state, types
 │  ├─ auth/
 │  │  ├─ components/           AuthForm, AuthGuard, GuestGuard
@@ -151,13 +152,20 @@ src/
 │  │  └─ usersApi.ts
 │  └─ schedule/
 │     ├─ components/           ScheduleCalendar, TherapistPanel, BookingDialog,
-│     │                        ManageTherapists/ManageRooms + TherapistDialog/RoomDialog
-│     ├─ graphql/              schedule.fragment.graphql, therapists/rooms/bookings.graphql
+│     │                        ManageTherapists/Rooms/Services + their dialogs
+│     ├─ graphql/              schedule.fragment.graphql, therapists/rooms/services/bookings.graphql
 │     ├─ lib/availability.ts   Scheduling rules (instant feedback; the server enforces them too)
-│     ├─ lib/useScheduleData.ts  Therapists + rooms + bookings for a range, from RTK Query
+│     ├─ lib/useScheduleData.ts  Therapists + rooms + services + bookings for a range
+│     ├─ lib/pricing.ts        Price lookup (same rules as the server), ₱ formatting
 │     ├─ scheduleApi.ts        RTK Query endpoints (injected into baseApi)
 │     ├─ scheduleSlice.ts      Visible calendar range
 │     └─ types.ts              App-facing schedule types (derived from codegen)
+│  └─ reports/
+│     ├─ components/           SalesReportView, SalesChart, TherapistServiceTable, …
+│     ├─ graphql/reports.graphql  SalesReport
+│     ├─ lib/                  period.ts (ranges, labels), excel.ts (Download Excel, ExcelJS)
+│     ├─ reportsApi.ts         RTK Query endpoint (injected into baseApi)
+│     └─ types.ts
 ├─ components/                 Shared UI: layout/ (Navbar, Sidebar), ui/ (Loader, Dialog)
 ├─ lib/
 │  ├─ graphqlBaseQuery.ts      RTK Query base query (Bearer token, errors, auto sign-out)
@@ -213,6 +221,27 @@ sample therapists and rooms, or add them on the **Therapists & rooms** page (`/m
 buttons follow the signed-in user's permissions (`createTherapist`, `updateRoom`, …; a super
 admin has all of them), and deleting is refused while a therapist or room has upcoming
 bookings.
+
+### Services and prices
+
+Every booking has a **service** (Fuyu, Natsu, Haru, Shiki, Aki). The booking dialog only offers
+the lengths a service is sold in (Fuyu: 60 or 80 minutes; Aki: any length) and shows the price
+for that date. Services and their prices are managed on **Manage** (`/manage`). A price applies
+to a length (or any length), to some weekdays (Aki: Mon–Thu ₱699, Fri–Sun ₱799) and to a period.
+**Change price** ends the current price the day before the new one starts, so past bookings
+keep the price they had. Nothing is copied onto bookings: the server looks the price up by date
+whenever a report runs.
+
+### Reports
+
+**Reports** (`/reports`, needs `readReports`) shows a weekly (Mon–Sun), monthly or annual sales
+report: revenue, services rendered per therapist and per service, the prices that applied, a
+revenue chart, and any bookings that couldn't be priced. Only bookings that have ended count,
+unless **Include upcoming bookings** is ticked. **Download Excel** saves an `.xlsx` workbook built
+in the browser with [ExcelJS](https://github.com/exceljs/exceljs) (loaded only when you export):
+Summary, By therapist, By service & price, By day / By month and Unpriced sheets, with styled
+headers, frozen panes, filters, ₱ formats and live `SUM` formulas for the totals. **Print**
+prints the page without the app chrome.
 
 **License:** resource views are FullCalendar Premium (`@fullcalendar/react-scheduler`). The
 default `CC-Attribution-NonCommercial-NoDerivatives` key is for trials and non-commercial use;

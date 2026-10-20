@@ -1,0 +1,21 @@
+query Services($includeArchived: Boolean) {
+    services(includeArchived: $includeArchived) {
+        ...ServiceFields
+    }
+}
+
+mutation CreateService($input: CreateServiceInput!) {
+    createService(input: $input) {
+        ...ServiceFields
+    }
+}
+
+mutation UpdateService($id: ID!, $input: UpdateServiceInput!) {
+    updateService(id: $id, input: $input) {
+        ...ServiceFields
+    }
+}
+
+mutation DeleteService($id: ID!) {
+    deleteService(id: $id)
+}

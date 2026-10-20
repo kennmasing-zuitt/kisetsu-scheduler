@@ -825,3 +825,362 @@ code {
     font-size: 0.85rem;
     font-weight: 500;
 }
+
+/* Services: wide dialog with price rules */
+.dialog--wide {
+    width: min(760px, calc(100vw - 32px));
+}
+.dialog__price {
+    margin: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+}
+.dialog__price strong {
+    font-size: 1.1rem;
+    font-variant-numeric: tabular-nums;
+}
+.check {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+.badge--on {
+    color: var(--primary);
+    border-color: var(--primary);
+}
+.weekday.is-on {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+}
+.price-rules {
+    list-style: none;
+    margin: 8px 0 12px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.price-rule {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.price-rule__head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.price-rule__grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+}
+@media (max-width: 640px) {
+    .price-rule__grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+.price-rule__days {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.price-rule__problems {
+    padding-left: 28px;
+}
+.plain-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.manage-grid--full {
+    grid-template-columns: minmax(0, 1fr);
+    margin-top: 16px;
+}
+
+/* Reports */
+.report-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px 20px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+}
+.report-controls__nav {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.report-controls__label {
+    min-width: 13em;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+.report-controls__end {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.report-controls input[type="date"] {
+    font: inherit;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+}
+.segmented {
+    display: inline-flex;
+    padding: 3px;
+    border-radius: 9px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+}
+.segmented button {
+    font: inherit;
+    font-size: 0.9rem;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+.segmented button.is-active {
+    background: var(--surface);
+    color: var(--text);
+    font-weight: 600;
+    box-shadow: var(--shadow);
+}
+.report {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.is-refreshing {
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+.stat-tiles {
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+}
+.stat {
+    padding: 14px 16px;
+}
+.stat dt {
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+.stat dd {
+    margin: 4px 0 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+.stat--warn {
+    border-color: var(--danger-text);
+}
+.stat--warn dd a {
+    color: var(--danger-text);
+}
+.report-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.report-section h2 {
+    margin: 0;
+    font-size: 1.05rem;
+}
+.report-section--warn {
+    border-color: var(--danger-text);
+}
+.report-section .table-wrap {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+.table--numbers .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+.table .strong,
+.table tfoot th,
+.table tfoot td,
+.table .subtotal td {
+    font-weight: 700;
+}
+.table tfoot th {
+    color: var(--text);
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 0.9rem;
+}
+.table tfoot td,
+.table tfoot th {
+    border-top: 2px solid var(--border);
+    border-bottom: 0;
+}
+.table tbody.group + tbody.group tr:first-child td {
+    border-top: 2px solid var(--border);
+}
+.table .subtotal td {
+    background: var(--bg);
+}
+
+/* Chart: single-series bars. One hue, 4px rounded tops anchored to the baseline,
+   2px gaps, recessive grid, tooltip on hover/focus. */
+.chart {
+    margin: 0;
+}
+.chart__title {
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+.chart__plot {
+    height: 240px;
+    padding: 8px 0 26px 60px;
+}
+.chart__area {
+    position: relative;
+    height: 100%;
+}
+.chart__gridline {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-top: 1px solid var(--border);
+}
+.chart__gridline span {
+    position: absolute;
+    right: calc(100% + 8px);
+    transform: translateY(-50%);
+    font-size: 0.72rem;
+    color: var(--muted);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+.chart__bars {
+    position: absolute;
+    inset: 0;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    align-items: stretch;
+    gap: 2px;
+}
+.chart__col {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    outline: none;
+    cursor: default;
+}
+.chart__bar {
+    width: 100%;
+    max-width: 44px;
+    min-height: 2px;
+    border-radius: 4px 4px 0 0;
+    background: var(--primary);
+}
+.chart__col:hover .chart__bar,
+.chart__col:focus-visible .chart__bar {
+    background: var(--primary-hover);
+}
+.chart__col:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--primary);
+    border-radius: 4px;
+}
+.chart__x {
+    position: absolute;
+    top: calc(100% + 6px);
+    font-size: 0.72rem;
+    color: var(--muted);
+    white-space: nowrap;
+}
+@media (max-width: 600px) {
+    .chart__x-prefix {
+        display: none;
+    }
+    .chart__plot {
+        padding-left: 48px;
+    }
+}
+.chart__tip {
+    display: none;
+    position: absolute;
+    left: 0;
+    z-index: 5;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: var(--text);
+    color: var(--surface);
+    font-size: 0.8rem;
+    white-space: nowrap;
+    pointer-events: none;
+    box-shadow: var(--shadow);
+}
+.chart__tip--end {
+    left: auto;
+    right: 0;
+}
+.chart__col:hover .chart__tip,
+.chart__col:focus-visible .chart__tip {
+    display: block;
+}
+.chart__empty {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    margin: 0;
+}
+
+.print-only {
+    display: none;
+}
+@media print {
+    .navbar,
+    .sidebar,
+    .sidebar__backdrop,
+    .no-print {
+        display: none !important;
+    }
+    .print-only {
+        display: block;
+    }
+    .app-shell__body > .page {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    .card {
+        box-shadow: none;
+        break-inside: avoid;
+    }
+    .table th,
+    .table td {
+        white-space: normal;
+    }
+}

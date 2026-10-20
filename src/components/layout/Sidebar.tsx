@@ -41,8 +41,13 @@ const navItems = [
         icon: icon("M4 5h16v15H4zM4 10h16M8 3v4M16 3v4"),
     },
     {
+        href: "/reports",
+        label: "Reports",
+        icon: icon("M4 20V10M10 20V4M16 20v-7M22 20H2"),
+    },
+    {
         href: "/manage",
-        label: "Therapists & rooms",
+        label: "Manage",
         icon: icon("M4 6h16M4 12h16M4 18h10M18 16v4M16 18h4"),
     },
 ];

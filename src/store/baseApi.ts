@@ -12,6 +12,6 @@ import { graphqlBaseQuery } from "@/lib/graphqlBaseQuery";
 export const baseApi = createApi({
     reducerPath: "api",
     baseQuery: graphqlBaseQuery,
-    tagTypes: ["Me", "User", "Therapist", "Room", "Booking"],
+    tagTypes: ["Me", "User", "Therapist", "Room", "Service", "Booking", "Report"],
     endpoints: () => ({}),
 });

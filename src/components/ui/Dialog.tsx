@@ -11,12 +11,15 @@ export default function Dialog({
     open,
     onClose,
     labelledBy,
+    wide = false,
     children,
 }: {
     open: boolean;
     onClose: () => void;
     /** id of the heading inside, for screen readers */
     labelledBy: string;
+    /** Wider dialog for forms with tables or repeated rows */
+    wide?: boolean;
     children: React.ReactNode;
 }) {
     const ref = useRef<HTMLDialogElement>(null);
@@ -31,7 +34,7 @@ export default function Dialog({
     return (
         <dialog
             ref={ref}
-            className="dialog"
+            className={wide ? "dialog dialog--wide" : "dialog"}
             onClose={onClose}
             onClick={(e) => e.target === ref.current && ref.current?.close()} // click on backdrop
             aria-labelledby={labelledBy}
