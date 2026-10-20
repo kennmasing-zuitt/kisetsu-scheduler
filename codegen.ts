@@ -1,7 +1,7 @@
 import type { CodegenConfig } from "@graphql-codegen/cli";
 
 const config: CodegenConfig = {
-    schema: "http://localhost:3001/graphql", // your Express GraphQL server (or a path to a .graphql schema file)
+    schema: "http://localhost:2200/graphql", // your Express GraphQL server (or a path to a .graphql schema file)
     documents: ["src/**/*.graphql"], // operations live in each module's graphql/ folder
     ignoreNoDocuments: true,
     generates: {

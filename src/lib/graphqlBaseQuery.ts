@@ -19,7 +19,7 @@ interface RootStateLike {
     auth: { accessToken: string | null };
 }
 
-const GRAPHQL_URL = process.env.NEXT_PUBLIC_GRAPHQL_URL ?? "http://localhost:4000/graphql";
+const GRAPHQL_URL = process.env.NEXT_PUBLIC_GRAPHQL_URL ?? "http://localhost:2200/graphql";
 const USE_MOCK = process.env.NEXT_PUBLIC_MOCK_API === "true";
 
 /**

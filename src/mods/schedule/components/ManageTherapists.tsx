@@ -13,7 +13,8 @@ import TherapistDialog from "./TherapistDialog";
 export default function ManageTherapists() {
     const { data: therapists = [], isLoading, error } = useGetTherapistsQuery();
     const [deleteTherapist, deleteState] = useDeleteTherapistMutation();
-    const { can } = usePermissions();
+    const { can, isLoading: permsLoading, error: permsError } = usePermissions();
+    const canCreate = can("createTherapist");
 
     const [editing, setEditing] = useState<Therapist | "new" | null>(null);
     const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -39,16 +40,28 @@ export default function ManageTherapists() {
         <section className="card manage-card" aria-labelledby="therapists-heading">
             <div className="manage-card__header">
                 <h2 id="therapists-heading">Therapists</h2>
-                {can("createTherapist") && (
-                    <button
-                        type="button"
-                        className="btn btn--primary"
-                        onClick={() => setEditing("new")}
-                    >
-                        + Add therapist
-                    </button>
-                )}
+                <button
+                    type="button"
+                    className="btn btn--primary"
+                    onClick={() => setEditing("new")}
+                    disabled={!canCreate}
+                    title={canCreate ? undefined : "Your account can't add therapists"}
+                >
+                    + Add therapist
+                </button>
             </div>
+
+            {permsError && (
+                <p className="alert" role="alert">
+                    Couldn&apos;t check your permissions: {permsError.message}
+                </p>
+            )}
+            {!permsLoading && !permsError && !canCreate && (
+                <p className="muted small">
+                    Your account can&apos;t add therapists. Ask an admin for the{" "}
+                    <code>createTherapist</code> permission, or sign in as an admin.
+                </p>
+            )}
 
             {isLoading && <Loader label="Loading therapists…" />}
             {error && <p className="alert">{(error as GraphqlError).message}</p>}

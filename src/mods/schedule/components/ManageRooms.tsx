@@ -12,7 +12,8 @@ import RoomDialog from "./RoomDialog";
 export default function ManageRooms() {
     const { data: rooms = [], isLoading, error } = useGetRoomsQuery();
     const [deleteRoom, deleteState] = useDeleteRoomMutation();
-    const { can } = usePermissions();
+    const { can, isLoading: permsLoading, error: permsError } = usePermissions();
+    const canCreate = can("createRoom");
 
     const [editing, setEditing] = useState<Room | "new" | null>(null);
     const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -37,16 +38,28 @@ export default function ManageRooms() {
         <section className="card manage-card" aria-labelledby="rooms-heading">
             <div className="manage-card__header">
                 <h2 id="rooms-heading">Rooms</h2>
-                {can("createRoom") && (
-                    <button
-                        type="button"
-                        className="btn btn--primary"
-                        onClick={() => setEditing("new")}
-                    >
-                        + Add room
-                    </button>
-                )}
+                <button
+                    type="button"
+                    className="btn btn--primary"
+                    onClick={() => setEditing("new")}
+                    disabled={!canCreate}
+                    title={canCreate ? undefined : "Your account can't add rooms"}
+                >
+                    + Add room
+                </button>
             </div>
+
+            {permsError && (
+                <p className="alert" role="alert">
+                    Couldn&apos;t check your permissions: {permsError.message}
+                </p>
+            )}
+            {!permsLoading && !permsError && !canCreate && (
+                <p className="muted small">
+                    Your account can&apos;t add rooms. Ask an admin for the <code>createRoom</code>{" "}
+                    permission, or sign in as an admin.
+                </p>
+            )}
 
             {isLoading && <Loader label="Loading rooms…" />}
             {error && <p className="alert">{(error as GraphqlError).message}</p>}
