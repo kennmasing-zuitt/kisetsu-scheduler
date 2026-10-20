@@ -4,12 +4,14 @@ import {
     LogoutDocument,
     MeDocument,
     RegisterDocument,
+    SessionDocument,
     type LoginMutation,
     type LoginMutationVariables,
     type LogoutMutation,
     type MeQuery,
     type RegisterMutation,
     type RegisterMutationVariables,
+    type SessionQuery,
 } from "@/gql/graphql";
 import type { AuthPayload, LoginInput, RegisterInput } from "./types";
 
@@ -38,7 +40,19 @@ export const authApi = baseApi.injectEndpoints({
             transformResponse: (data: MeQuery) => data.me,
             providesTags: ["Me"],
         }),
+        /** What the signed-in user can do: role permissions + extras (all for a super admin). */
+        session: build.query<SessionQuery["session"], void>({
+            query: () => ({ document: SessionDocument }),
+            transformResponse: (data: SessionQuery) => data.session,
+            providesTags: ["Me"],
+        }),
     }),
 });
 
-export const { useLoginMutation, useRegisterMutation, useLogoutMutation, useMeQuery } = authApi;
+export const {
+    useLoginMutation,
+    useRegisterMutation,
+    useLogoutMutation,
+    useMeQuery,
+    useSessionQuery,
+} = authApi;

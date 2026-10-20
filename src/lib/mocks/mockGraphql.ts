@@ -115,7 +115,7 @@ export async function mockGraphql(
     const input = (variables?.input ?? {}) as Record<string, string>;
     const id = variables?.id as string | undefined;
     const op = operationName(document);
-    const isAuthOp = ["Login", "Register", "Logout", "Me"].includes(op);
+    const isAuthOp = ["Login", "Register", "Logout", "Me", "Session"].includes(op);
     if (!isAuthOp && !token) {
         return { error: { message: "Not authenticated", code: "UNAUTHENTICATED" } };
     }
@@ -152,6 +152,26 @@ export async function mockGraphql(
                 ? { data: { me: user } }
                 : { error: { message: "Not authenticated", code: "UNAUTHENTICATED" } };
         }
+        case "Session":
+            if (!token) return { error: { message: "Not authenticated", code: "UNAUTHENTICATED" } };
+            // The mock user may do everything, so every action shows up
+            return {
+                data: {
+                    session: {
+                        effectivePerms: [
+                            "createTherapist",
+                            "updateTherapist",
+                            "deleteTherapist",
+                            "createRoom",
+                            "updateRoom",
+                            "deleteRoom",
+                            "createBooking",
+                            "updateBooking",
+                            "deleteBooking",
+                        ],
+                    },
+                },
+            };
         case "Users":
             if (!token) return { error: { message: "Not authenticated", code: "UNAUTHENTICATED" } };
             return {

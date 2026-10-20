@@ -25,3 +25,9 @@ query Me {
         ...UserFields
     }
 }
+
+query Session {
+    session {
+        effectivePerms
+    }
+}

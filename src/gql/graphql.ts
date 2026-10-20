@@ -135,6 +135,10 @@ export type MeQuery = {
     };
 };
 
+export type SessionQueryVariables = Exact<{ [key: string]: never }>;
+
+export type SessionQuery = { session: { effectivePerms: Array<Permission> } };
+
 export type BookingsQueryVariables = Exact<{
     from: string;
     to: string;
@@ -431,6 +435,13 @@ export const MeDocument = new TypedDocumentString(`
   extraPerms
   createdAt
 }`) as unknown as TypedDocumentString<MeQuery, MeQueryVariables>;
+export const SessionDocument = new TypedDocumentString(`
+    query Session {
+  session {
+    effectivePerms
+  }
+}
+    `) as unknown as TypedDocumentString<SessionQuery, SessionQueryVariables>;
 export const BookingsDocument = new TypedDocumentString(`
     query Bookings($from: DateTime!, $to: DateTime!) {
   bookings(from: $from, to: $to) {

@@ -40,6 +40,11 @@ const navItems = [
         label: "Schedule",
         icon: icon("M4 5h16v15H4zM4 10h16M8 3v4M16 3v4"),
     },
+    {
+        href: "/manage",
+        label: "Therapists & rooms",
+        icon: icon("M4 6h16M4 12h16M4 18h10M18 16v4M16 18h4"),
+    },
 ];
 
 export default function Sidebar() {
