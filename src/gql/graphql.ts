@@ -9,6 +9,8 @@ export type CreateBookingInput = {
     client: string;
     end: string;
     roomId: string | number;
+    /** Must have a price for the booking length on its date */
+    serviceId: string | number;
     start: string;
     therapistId: string | number;
 };
@@ -16,6 +18,13 @@ export type CreateBookingInput = {
 export type CreateRoomInput = {
     color: string;
     name: string;
+};
+
+export type CreateServiceInput = {
+    description?: string | null | undefined;
+    isActive?: boolean | null | undefined;
+    name: string;
+    prices: Array<ServicePriceInput>;
 };
 
 export type CreateTherapistInput = {
@@ -34,22 +43,26 @@ export type Permission =
     | "createBooking"
     | "createExample"
     | "createRoom"
+    | "createService"
     | "createTherapist"
     | "deleteBooking"
     | "deleteExample"
     | "deleteRoom"
+    | "deleteService"
     | "deleteTherapist"
     | "impersonateUsers"
     | "logoutUsers"
     | "manageRoles"
     | "manageUserAccess"
     | "readAuditLogs"
+    | "readReports"
     | "readRoles"
     | "readUsers"
     | "superAdmin"
     | "updateBooking"
     | "updateExample"
     | "updateRoom"
+    | "updateService"
     | "updateTherapist";
 
 export type RegisterInput = {
@@ -60,11 +73,30 @@ export type RegisterInput = {
     password: string;
 };
 
+/** weekly = Monday to Sunday; monthly; annual. Dates in SCHEDULE_TIMEZONE */
+export type ReportPeriod = "annual" | "monthly" | "weekly";
+
+export type ServicePriceInput = {
+    amount: number;
+    /** Weekdays (0 = Sunday); leave out for every day */
+    days?: Array<number> | null | undefined;
+    /** Minutes; leave out for any length */
+    durationMin?: number | null | undefined;
+    /** "YYYY-MM-DD" */
+    validFrom: string;
+    /** "YYYY-MM-DD"; leave out while current */
+    validTo?: string | null | undefined;
+};
+
+/** noService = booking has no service; noPrice = no price rule for its date/length */
+export type UnpricedReason = "noPrice" | "noService";
+
 /** Only the fields you send are changed; the result must still pass every rule */
 export type UpdateBookingInput = {
     client?: string | null | undefined;
     end?: string | null | undefined;
     roomId?: string | number | null | undefined;
+    serviceId?: string | number | null | undefined;
     start?: string | null | undefined;
     therapistId?: string | number | null | undefined;
 };
@@ -73,6 +105,14 @@ export type UpdateBookingInput = {
 export type UpdateRoomInput = {
     color?: string | null | undefined;
     name?: string | null | undefined;
+};
+
+/** Only the fields you send are changed; `prices` replaces the whole price list */
+export type UpdateServiceInput = {
+    description?: string | null | undefined;
+    isActive?: boolean | null | undefined;
+    name?: string | null | undefined;
+    prices?: Array<ServicePriceInput> | null | undefined;
 };
 
 /** Only the fields you send are changed; lists replace the stored list */
@@ -139,6 +179,83 @@ export type SessionQueryVariables = Exact<{ [key: string]: never }>;
 
 export type SessionQuery = { session: { effectivePerms: Array<Permission> } };
 
+export type SalesLineFieldsFragment = {
+    serviceId: string;
+    serviceName: string;
+    durationMin: number;
+    unitPrice: number;
+    bookings: number;
+    revenue: number;
+};
+
+export type SalesReportQueryVariables = Exact<{
+    period: ReportPeriod;
+    date: string;
+    includeUpcoming?: boolean | null | undefined;
+}>;
+
+export type SalesReportQuery = {
+    salesReport: {
+        period: ReportPeriod;
+        from: string;
+        to: string;
+        timeZone: string;
+        currency: string;
+        includeUpcoming: boolean;
+        generatedAt: string;
+        totals: { bookings: number; minutes: number; revenue: number; unpriced: number };
+        therapists: Array<{
+            therapistId: string;
+            therapistName: string;
+            bookings: number;
+            minutes: number;
+            revenue: number;
+            unpriced: number;
+            services: Array<{
+                serviceId: string;
+                serviceName: string;
+                bookings: number;
+                revenue: number;
+            }>;
+            lines: Array<{
+                serviceId: string;
+                serviceName: string;
+                durationMin: number;
+                unitPrice: number;
+                bookings: number;
+                revenue: number;
+            }>;
+        }>;
+        services: Array<{
+            serviceId: string;
+            serviceName: string;
+            isActive: boolean;
+            bookings: number;
+            minutes: number;
+            revenue: number;
+            unpriced: number;
+            lines: Array<{
+                serviceId: string;
+                serviceName: string;
+                durationMin: number;
+                unitPrice: number;
+                bookings: number;
+                revenue: number;
+            }>;
+        }>;
+        series: Array<{ key: string; bookings: number; revenue: number }>;
+        unpriced: Array<{
+            bookingId: string;
+            client: string;
+            start: string;
+            durationMin: number;
+            therapistName: string;
+            serviceName: string | null;
+            reason: UnpricedReason;
+        }>;
+    };
+};
+
 export type BookingsQueryVariables = Exact<{
     from: string;
     to: string;
@@ -150,6 +267,7 @@ export type BookingsQuery = {
         client: string;
         therapistId: string;
         roomId: string;
+        serviceId: string | null;
         start: string;
         end: string;
     }>;
@@ -165,6 +283,7 @@ export type CreateBookingMutation = {
         client: string;
         therapistId: string;
         roomId: string;
+        serviceId: string | null;
         start: string;
         end: string;
     };
@@ -181,6 +300,7 @@ export type UpdateBookingMutation = {
         client: string;
         therapistId: string;
         roomId: string;
+        serviceId: string | null;
         start: string;
         end: string;
     };
@@ -229,9 +349,104 @@ export type BookingFieldsFragment = {
     client: string;
     therapistId: string;
     roomId: string;
+    serviceId: string | null;
     start: string;
     end: string;
 };
+
+export type ServicePriceFieldsFragment = {
+    id: string;
+    durationMin: number | null;
+    days: Array<number>;
+    amount: number;
+    validFrom: string;
+    validTo: string | null;
+};
+
+export type ServiceFieldsFragment = {
+    id: string;
+    name: string;
+    description: string;
+    isActive: boolean;
+    prices: Array<{
+        id: string;
+        durationMin: number | null;
+        days: Array<number>;
+        amount: number;
+        validFrom: string;
+        validTo: string | null;
+    }>;
+};
+
+export type ServicesQueryVariables = Exact<{
+    includeArchived?: boolean | null | undefined;
+}>;
+
+export type ServicesQuery = {
+    services: Array<{
+        id: string;
+        name: string;
+        description: string;
+        isActive: boolean;
+        prices: Array<{
+            id: string;
+            durationMin: number | null;
+            days: Array<number>;
+            amount: number;
+            validFrom: string;
+            validTo: string | null;
+        }>;
+    }>;
+};
+
+export type CreateServiceMutationVariables = Exact<{
+    input: CreateServiceInput;
+}>;
+
+export type CreateServiceMutation = {
+    createService: {
+        id: string;
+        name: string;
+        description: string;
+        isActive: boolean;
+        prices: Array<{
+            id: string;
+            durationMin: number | null;
+            days: Array<number>;
+            amount: number;
+            validFrom: string;
+            validTo: string | null;
+        }>;
+    };
+};
+
+export type UpdateServiceMutationVariables = Exact<{
+    id: string | number;
+    input: UpdateServiceInput;
+}>;
+
+export type UpdateServiceMutation = {
+    updateService: {
+        id: string;
+        name: string;
+        description: string;
+        isActive: boolean;
+        prices: Array<{
+            id: string;
+            durationMin: number | null;
+            days: Array<number>;
+            amount: number;
+            validFrom: string;
+            validTo: string | null;
+        }>;
+    };
+};
+
+export type DeleteServiceMutationVariables = Exact<{
+    id: string | number;
+}>;
+
+export type DeleteServiceMutation = { deleteService: boolean };
 
 export type TherapistsQueryVariables = Exact<{ [key: string]: never }>;
 
@@ -323,6 +538,19 @@ export class TypedDocumentString<TResult, TVariables>
         return this.value;
     }
 }
+export const SalesLineFieldsFragmentDoc = new TypedDocumentString(
+    `
+    fragment SalesLineFields on SalesLine {
+  serviceId
+  serviceName
+  durationMin
+  unitPrice
+  bookings
+  revenue
+}
+    `,
+    { fragmentName: "SalesLineFields" },
+) as unknown as TypedDocumentString<SalesLineFieldsFragment, unknown>;
 export const TherapistFieldsFragmentDoc = new TypedDocumentString(
     `
     fragment TherapistFields on Therapist {
@@ -351,12 +579,47 @@ export const BookingFieldsFragmentDoc = new TypedDocumentString(
   client
   therapistId
   roomId
+  serviceId
   start
   end
 }
     `,
     { fragmentName: "BookingFields" },
 ) as unknown as TypedDocumentString<BookingFieldsFragment, unknown>;
+export const ServicePriceFieldsFragmentDoc = new TypedDocumentString(
+    `
+    fragment ServicePriceFields on ServicePrice {
+  id
+  durationMin
+  days
+  amount
+  validFrom
+  validTo
+}
+    `,
+    { fragmentName: "ServicePriceFields" },
+) as unknown as TypedDocumentString<ServicePriceFieldsFragment, unknown>;
+export const ServiceFieldsFragmentDoc = new TypedDocumentString(
+    `
+    fragment ServiceFields on Service {
+  id
+  name
+  description
+  isActive
+  prices {
+    ...ServicePriceFields
+  }
+}
+    fragment ServicePriceFields on ServicePrice {
+  id
+  durationMin
+  days
+  amount
+  validFrom
+  validTo
+}`,
+    { fragmentName: "ServiceFields" },
+) as unknown as TypedDocumentString<ServiceFieldsFragment, unknown>;
 export const UserFieldsFragmentDoc = new TypedDocumentString(
     `
     fragment UserFields on User {
@@ -442,6 +705,75 @@ export const SessionDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<SessionQuery, SessionQueryVariables>;
+export const SalesReportDocument = new TypedDocumentString(`
+    query SalesReport($period: ReportPeriod!, $date: String!, $includeUpcoming: Boolean) {
+  salesReport(period: $period, date: $date, includeUpcoming: $includeUpcoming) {
+    period
+    from
+    to
+    timeZone
+    currency
+    includeUpcoming
+    generatedAt
+    totals {
+      bookings
+      minutes
+      revenue
+      unpriced
+    }
+    therapists {
+      therapistId
+      therapistName
+      bookings
+      minutes
+      revenue
+      unpriced
+      services {
+        serviceId
+        serviceName
+        bookings
+        revenue
+      }
+      lines {
+        ...SalesLineFields
+      }
+    }
+    services {
+      serviceId
+      serviceName
+      isActive
+      bookings
+      minutes
+      revenue
+      unpriced
+      lines {
+        ...SalesLineFields
+      }
+    }
+    series {
+      key
+      bookings
+      revenue
+    }
+    unpriced {
+      bookingId
+      client
+      start
+      durationMin
+      therapistName
+      serviceName
+      reason
+    }
+  }
+}
+    fragment SalesLineFields on SalesLine {
+  serviceId
+  serviceName
+  durationMin
+  unitPrice
+  bookings
+  revenue
+}`) as unknown as TypedDocumentString<SalesReportQuery, SalesReportQueryVariables>;
 export const BookingsDocument = new TypedDocumentString(`
     query Bookings($from: DateTime!, $to: DateTime!) {
   bookings(from: $from, to: $to) {
@@ -453,6 +785,7 @@ export const BookingsDocument = new TypedDocumentString(`
   client
   therapistId
   roomId
+  serviceId
   start
   end
 }`) as unknown as TypedDocumentString<BookingsQuery, BookingsQueryVariables>;
@@ -467,6 +800,7 @@ export const CreateBookingDocument = new TypedDocumentString(`
   client
   therapistId
   roomId
+  serviceId
   start
   end
 }`) as unknown as TypedDocumentString<CreateBookingMutation, CreateBookingMutationVariables>;
@@ -481,6 +815,7 @@ export const UpdateBookingDocument = new TypedDocumentString(`
   client
   therapistId
   roomId
+  serviceId
   start
   end
 }`) as unknown as TypedDocumentString<UpdateBookingMutation, UpdateBookingMutationVariables>;
@@ -527,6 +862,80 @@ export const DeleteRoomDocument = new TypedDocumentString(`
   deleteRoom(id: $id)
 }
     `) as unknown as TypedDocumentString<DeleteRoomMutation, DeleteRoomMutationVariables>;
+export const ServicesDocument = new TypedDocumentString(`
+    query Services($includeArchived: Boolean) {
+  services(includeArchived: $includeArchived) {
+    ...ServiceFields
+  }
+}
+    fragment ServicePriceFields on ServicePrice {
+  id
+  durationMin
+  days
+  amount
+  validFrom
+  validTo
+}
+fragment ServiceFields on Service {
+  id
+  name
+  description
+  isActive
+  prices {
+    ...ServicePriceFields
+  }
+}`) as unknown as TypedDocumentString<ServicesQuery, ServicesQueryVariables>;
+export const CreateServiceDocument = new TypedDocumentString(`
+    mutation CreateService($input: CreateServiceInput!) {
+  createService(input: $input) {
+    ...ServiceFields
+  }
+}
+    fragment ServicePriceFields on ServicePrice {
+  id
+  durationMin
+  days
+  amount
+  validFrom
+  validTo
+}
+fragment ServiceFields on Service {
+  id
+  name
+  description
+  isActive
+  prices {
+    ...ServicePriceFields
+  }
+}`) as unknown as TypedDocumentString<CreateServiceMutation, CreateServiceMutationVariables>;
+export const UpdateServiceDocument = new TypedDocumentString(`
+    mutation UpdateService($id: ID!, $input: UpdateServiceInput!) {
+  updateService(id: $id, input: $input) {
+    ...ServiceFields
+  }
+}
+    fragment ServicePriceFields on ServicePrice {
+  id
+  durationMin
+  days
+  amount
+  validFrom
+  validTo
+}
+fragment ServiceFields on Service {
+  id
+  name
+  description
+  isActive
+  prices {
+    ...ServicePriceFields
+  }
+}`) as unknown as TypedDocumentString<UpdateServiceMutation, UpdateServiceMutationVariables>;
+export const DeleteServiceDocument = new TypedDocumentString(`
+    mutation DeleteService($id: ID!) {
+  deleteService(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteServiceMutation, DeleteServiceMutationVariables>;
 export const TherapistsDocument = new TypedDocumentString(`
     query Therapists {
   therapists {

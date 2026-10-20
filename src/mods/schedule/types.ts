@@ -5,15 +5,20 @@
 import type {
     BookingFieldsFragment,
     RoomFieldsFragment,
+    ServiceFieldsFragment,
+    ServicePriceFieldsFragment,
     TherapistFieldsFragment,
 } from "@/gql/graphql";
 
 export type {
     CreateBookingInput,
     CreateRoomInput,
+    CreateServiceInput,
     CreateTherapistInput,
+    ServicePriceInput,
     UpdateBookingInput,
     UpdateRoomInput,
+    UpdateServiceInput,
     UpdateTherapistInput,
 } from "@/gql/graphql";
 
@@ -26,7 +31,17 @@ export type Therapist = TherapistFieldsFragment;
 /** { id, name, color } */
 export type Room = RoomFieldsFragment;
 
-/** A client booking: one therapist, one room, one time range. Dates are ISO strings. */
+/** { id, name, description, isActive, prices } */
+export type Service = ServiceFieldsFragment;
+
+/**
+ * One price rule: `amount` (PHP) for bookings of `durationMin` minutes (null = any length) on
+ * `days` (empty = every day), from `validFrom` to `validTo` (null = still current), as local
+ * dates "YYYY-MM-DD".
+ */
+export type ServicePrice = ServicePriceFieldsFragment;
+
+/** A client booking: one therapist, one room, one service, one time range. Dates are ISO strings. */
 export type Booking = BookingFieldsFragment;
 
 /** A window of time as ISO strings: bookings overlapping [from, to) */

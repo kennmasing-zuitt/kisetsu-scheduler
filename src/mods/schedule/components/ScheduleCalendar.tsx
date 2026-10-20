@@ -84,7 +84,7 @@ export default function ScheduleCalendar({
 }) {
     const dispatch = useAppDispatch();
     const range = useAppSelector(selectVisibleRange);
-    const { therapists, rooms, bookings } = useScheduleData(range);
+    const { therapists, rooms, bookings, services } = useScheduleData(range);
     const [updateBooking] = useUpdateBookingMutation();
     const calendarRef = useRef<CalendarRef>(null);
     const isMobile = useIsMobile();
@@ -99,6 +99,7 @@ export default function ScheduleCalendar({
 
     const therapistById = useMemo(() => new Map(therapists.map((t) => [t.id, t])), [therapists]);
     const roomById = useMemo(() => new Map(rooms.map((r) => [r.id, r])), [rooms]);
+    const serviceById = useMemo(() => new Map(services.map((s) => [s.id, s])), [services]);
 
     // The dates on screen, kept in sync by datesSet. Starts as today (the initial Day view).
     const visible = useMemo(() => {
@@ -126,7 +127,13 @@ export default function ScheduleCalendar({
             const room = roomById.get(b.roomId);
             return {
                 id: b.id,
-                title: `${b.client} · ${room?.name ?? "No room"}`,
+                title: [
+                    b.client,
+                    b.serviceId ? serviceById.get(b.serviceId)?.name : null,
+                    room?.name ?? "No room",
+                ]
+                    .filter(Boolean)
+                    .join(" · "),
                 start: b.start,
                 end: b.end,
                 resourceId: b.therapistId,
@@ -147,7 +154,7 @@ export default function ScheduleCalendar({
             })),
         );
         return [...bookingEvents, ...leaveEvents];
-    }, [bookings, therapists, roomById]);
+    }, [bookings, therapists, roomById, serviceById]);
 
     /** Shared rule for creating and moving bookings. */
     const canBook = (span: DateSpanApi) => {

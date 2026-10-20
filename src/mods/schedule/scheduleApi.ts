@@ -8,6 +8,10 @@ import {
     DeleteRoomDocument,
     DeleteTherapistDocument,
     RoomsDocument,
+    ServicesDocument,
+    CreateServiceDocument,
+    UpdateServiceDocument,
+    DeleteServiceDocument,
     TherapistsDocument,
     UpdateBookingDocument,
     UpdateRoomDocument,
@@ -24,6 +28,12 @@ import {
     type DeleteRoomMutation,
     type DeleteTherapistMutation,
     type RoomsQuery,
+    type ServicesQuery,
+    type CreateServiceMutation,
+    type CreateServiceMutationVariables,
+    type UpdateServiceMutation,
+    type UpdateServiceMutationVariables,
+    type DeleteServiceMutation,
     type TherapistsQuery,
     type UpdateBookingMutation,
     type UpdateBookingMutationVariables,
@@ -39,6 +49,9 @@ import type {
     CreateRoomInput,
     CreateTherapistInput,
     Room,
+    Service,
+    CreateServiceInput,
+    UpdateServiceInput,
     Therapist,
     UpdateBookingInput,
     UpdateRoomInput,
@@ -98,7 +111,7 @@ export const scheduleApi = baseApi.injectEndpoints({
         deleteTherapist: build.mutation<DeleteTherapistMutation["deleteTherapist"], string>({
             query: (id) => ({ document: DeleteTherapistDocument, variables: { id } }),
             transformResponse: (data: DeleteTherapistMutation) => data.deleteTherapist,
-            invalidatesTags: ["Therapist", "Booking"],
+            invalidatesTags: ["Therapist", "Booking", "Report"],
         }),
 
         // ---------- Rooms ----------
@@ -126,7 +139,42 @@ export const scheduleApi = baseApi.injectEndpoints({
         deleteRoom: build.mutation<DeleteRoomMutation["deleteRoom"], string>({
             query: (id) => ({ document: DeleteRoomDocument, variables: { id } }),
             transformResponse: (data: DeleteRoomMutation) => data.deleteRoom,
-            invalidatesTags: ["Room", "Booking"],
+            invalidatesTags: ["Room", "Booking", "Report"],
+        }),
+
+        // ---------- Services ----------
+        /** Services with their full price history. `true` includes archived ones. */
+        getServices: build.query<Service[], boolean | void>({
+            query: (includeArchived) => ({
+                document: ServicesDocument,
+                variables: { includeArchived: Boolean(includeArchived) },
+            }),
+            transformResponse: (data: ServicesQuery) => data.services,
+            providesTags: ["Service"],
+        }),
+        /** Server errors: VALIDATION_ERROR (e.g. overlapping prices), SERVICE_NAME_TAKEN */
+        createService: build.mutation<Service, CreateServiceInput>({
+            query: (input) => ({
+                document: CreateServiceDocument,
+                variables: { input } satisfies CreateServiceMutationVariables,
+            }),
+            transformResponse: (data: CreateServiceMutation) => data.createService,
+            invalidatesTags: ["Service"],
+        }),
+        /** `prices` replaces the whole list; reports are re-priced from it. */
+        updateService: build.mutation<Service, UpdateArgs<UpdateServiceInput>>({
+            query: ({ id, input }) => ({
+                document: UpdateServiceDocument,
+                variables: { id, input } satisfies UpdateServiceMutationVariables,
+            }),
+            transformResponse: (data: UpdateServiceMutation) => data.updateService,
+            invalidatesTags: ["Service", "Report"],
+        }),
+        /** Only for services no booking uses (SERVICE_IN_USE otherwise: archive instead). */
+        deleteService: build.mutation<DeleteServiceMutation["deleteService"], string>({
+            query: (id) => ({ document: DeleteServiceDocument, variables: { id } }),
+            transformResponse: (data: DeleteServiceMutation) => data.deleteService,
+            invalidatesTags: ["Service"],
         }),
 
         // ---------- Bookings ----------
@@ -146,7 +194,7 @@ export const scheduleApi = baseApi.injectEndpoints({
                 variables: { input } satisfies CreateBookingMutationVariables,
             }),
             transformResponse: (data: CreateBookingMutation) => data.createBooking,
-            invalidatesTags: ["Booking"],
+            invalidatesTags: ["Booking", "Report"],
         }),
         /** Edit, move or reassign. Same errors as createBooking. */
         updateBooking: build.mutation<Booking, UpdateArgs<UpdateBookingInput>>({
@@ -172,13 +220,13 @@ export const scheduleApi = baseApi.injectEndpoints({
                     patches.forEach((p) => p.undo());
                 }
             },
-            invalidatesTags: ["Booking"],
+            invalidatesTags: ["Booking", "Report"],
         }),
         /** Cancels a booking. */
         deleteBooking: build.mutation<DeleteBookingMutation["deleteBooking"], string>({
             query: (id) => ({ document: DeleteBookingDocument, variables: { id } }),
             transformResponse: (data: DeleteBookingMutation) => data.deleteBooking,
-            invalidatesTags: ["Booking"],
+            invalidatesTags: ["Booking", "Report"],
         }),
     }),
 });
@@ -192,6 +240,10 @@ export const {
     useCreateRoomMutation,
     useUpdateRoomMutation,
     useDeleteRoomMutation,
+    useGetServicesQuery,
+    useCreateServiceMutation,
+    useUpdateServiceMutation,
+    useDeleteServiceMutation,
     useGetBookingsQuery,
     useCreateBookingMutation,
     useUpdateBookingMutation,

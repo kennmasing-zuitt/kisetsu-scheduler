@@ -10,6 +10,13 @@ import { dayRange, useScheduleData } from "@/mods/schedule/lib/useScheduleData";
 import type { Booking } from "@/mods/schedule/types";
 import type { GraphqlError } from "@/lib/graphqlBaseQuery";
 import {
+    findServicePrice,
+    formatPeso,
+    hasAnyLengthPrice,
+    priceDayOf,
+    pricedDurationsOn,
+} from "@/mods/schedule/lib/pricing";
+import {
     CLOSING_TIME,
     OPENING_TIME,
     findFreeRoom,
@@ -98,7 +105,8 @@ function BookingForm({ draft, onDone }: { draft: BookingDraft; onDone: () => voi
         const day = fromDateAndTime(date, "00:00");
         return Number.isNaN(day.getTime()) ? null : dayRange(day);
     }, [date]);
-    const { therapists, rooms, bookings } = useScheduleData(range);
+    const { therapists, rooms, bookings, services } = useScheduleData(range);
+    const [serviceId, setServiceId] = useState(existing?.serviceId ?? "");
 
     const [createBooking, createState] = useCreateBookingMutation();
     const [updateBooking, updateState] = useUpdateBookingMutation();
@@ -125,6 +133,31 @@ function BookingForm({ draft, onDone }: { draft: BookingDraft; onDone: () => voi
     const validTime = !Number.isNaN(start.getTime()) && durationMin > 0;
 
     const therapist = therapists.find((t) => t.id === therapistId);
+
+    // Price: the service's rule for this date, weekday and length (same lookup as the server)
+    const service = services.find((s) => s.id === serviceId);
+    const priceDay = validTime ? priceDayOf(start) : null;
+    const price =
+        service && priceDay ? findServicePrice(service.prices, priceDay, durationMin) : undefined;
+    // Services sold in fixed lengths (Fuyu: 60 / 80 min) offer only those; "any length" ones
+    // (Aki) keep the free duration presets
+    const fixedLengths =
+        service && priceDay && !hasAnyLengthPrice(service.prices, priceDay)
+            ? pricedDurationsOn(service.prices, priceDay)
+            : null;
+    // Offered: active services, plus the booking's current one even if archived since
+    const offered = services.filter((s) => s.isActive || s.id === existing?.serviceId);
+
+    function chooseService(id: string) {
+        setServiceId(id);
+        const next = services.find((s) => s.id === id);
+        if (!next || !priceDay || hasAnyLengthPrice(next.prices, priceDay)) return;
+        const lengths = pricedDurationsOn(next.prices, priceDay);
+        if (lengths.length && !lengths.includes(durationMin)) {
+            setDurationMin(lengths[0]);
+            setCustomDuration(false);
+        }
+    }
     const roomTaken = (id: string) => validTime && !isRoomFree(id, bookings, start, end, ignoreId);
 
     // The room actually used: the chosen one while it's free; if a time change makes it
@@ -147,6 +180,13 @@ function BookingForm({ draft, onDone }: { draft: BookingDraft; onDone: () => voi
             problems.push(`${therapist.name} already has a booking at that time.`);
         if (!roomId) problems.push("No room is free at that time.");
         else if (roomTaken(roomId)) problems.push("That room is already booked at that time.");
+        if (!service) problems.push("Choose a service.");
+        else if (!price)
+            problems.push(
+                fixedLengths?.length
+                    ? `${service.name} isn't offered for ${formatDuration(durationMin)} on that date.`
+                    : `${service.name} has no price on that date.`,
+            );
     }
 
     async function handleSubmit(e: FormEvent) {
@@ -156,6 +196,7 @@ function BookingForm({ draft, onDone }: { draft: BookingDraft; onDone: () => voi
             client: client.trim(),
             therapistId,
             roomId,
+            serviceId,
             start: start.toISOString(),
             end: end.toISOString(),
         };
@@ -201,6 +242,19 @@ function BookingForm({ draft, onDone }: { draft: BookingDraft; onDone: () => voi
             </label>
 
             <label className="field">
+                <span>Service</span>
+                <select value={serviceId} onChange={(e) => chooseService(e.target.value)} required>
+                    {!service && <option value="">Choose a service…</option>}
+                    {offered.map((s) => (
+                        <option key={s.id} value={s.id}>
+                            {s.name}
+                            {s.isActive ? "" : " (no longer offered)"}
+                        </option>
+                    ))}
+                </select>
+            </label>
+
+            <label className="field">
                 <span>Therapist</span>
                 <select value={therapistId} onChange={(e) => setTherapistId(e.target.value)}>
                     {therapists.map((t) => {
@@ -242,23 +296,48 @@ function BookingForm({ draft, onDone }: { draft: BookingDraft; onDone: () => voi
             <div className="field-row">
                 <label className="field">
                     <span>Duration</span>
-                    <select
-                        value={customDuration ? "custom" : String(durationMin)}
-                        onChange={(e) => {
-                            if (e.target.value === "custom") return setCustomDuration(true);
-                            setCustomDuration(false);
-                            setDurationMin(Number(e.target.value));
-                        }}
-                    >
-                        {DURATION_PRESETS.map((m) => (
-                            <option key={m} value={m}>
-                                {formatDuration(m)}
-                            </option>
-                        ))}
-                        <option value="custom">Custom…</option>
-                    </select>
+                    {fixedLengths ? (
+                        <select
+                            value={String(durationMin)}
+                            onChange={(e) => {
+                                setCustomDuration(false);
+                                setDurationMin(Number(e.target.value));
+                            }}
+                        >
+                            {!fixedLengths.includes(durationMin) && (
+                                <option value={durationMin}>
+                                    {formatDuration(durationMin)} (not offered)
+                                </option>
+                            )}
+                            {fixedLengths.map((m) => {
+                                const rule = findServicePrice(service!.prices, priceDay!, m);
+                                return (
+                                    <option key={m} value={m}>
+                                        {formatDuration(m)}
+                                        {rule ? ` · ${formatPeso(rule.amount)}` : ""}
+                                    </option>
+                                );
+                            })}
+                        </select>
+                    ) : (
+                        <select
+                            value={customDuration ? "custom" : String(durationMin)}
+                            onChange={(e) => {
+                                if (e.target.value === "custom") return setCustomDuration(true);
+                                setCustomDuration(false);
+                                setDurationMin(Number(e.target.value));
+                            }}
+                        >
+                            {DURATION_PRESETS.map((m) => (
+                                <option key={m} value={m}>
+                                    {formatDuration(m)}
+                                </option>
+                            ))}
+                            <option value="custom">Custom…</option>
+                        </select>
+                    )}
                 </label>
-                {customDuration ? (
+                {customDuration && !fixedLengths ? (
                     <label className="field">
                         <span>Minutes</span>
                         <input
@@ -294,7 +373,13 @@ function BookingForm({ draft, onDone }: { draft: BookingDraft; onDone: () => voi
                 </select>
             </label>
 
-            {validTime && customDuration && (
+            {price && (
+                <p className="dialog__price">
+                    <span className="muted">Price</span> <strong>{formatPeso(price.amount)}</strong>
+                </p>
+            )}
+
+            {validTime && customDuration && !fixedLengths && (
                 <p className="muted dialog__summary">
                     {formatTime(start)} – {formatTime(end)} · {formatDuration(durationMin)}
                 </p>

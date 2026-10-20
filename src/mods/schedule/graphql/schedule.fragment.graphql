@@ -1,4 +1,4 @@
-# Shared schedule shapes. Used by the therapist, room and booking operations.
+# Shared schedule shapes. Used by the therapist, room, service and booking operations.
 fragment TherapistFields on Therapist {
     id
     name
@@ -17,6 +17,26 @@ fragment BookingFields on Booking {
     client
     therapistId
     roomId
+    serviceId
     start
     end
+}
+
+fragment ServicePriceFields on ServicePrice {
+    id
+    durationMin
+    days
+    amount
+    validFrom
+    validTo
+}
+
+fragment ServiceFields on Service {
+    id
+    name
+    description
+    isActive
+    prices {
+        ...ServicePriceFields
+    }
 }

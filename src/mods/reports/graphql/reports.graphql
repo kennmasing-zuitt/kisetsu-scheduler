@@ -1,0 +1,69 @@
+fragment SalesLineFields on SalesLine {
+    serviceId
+    serviceName
+    durationMin
+    unitPrice
+    bookings
+    revenue
+}
+
+query SalesReport($period: ReportPeriod!, $date: String!, $includeUpcoming: Boolean) {
+    salesReport(period: $period, date: $date, includeUpcoming: $includeUpcoming) {
+        period
+        from
+        to
+        timeZone
+        currency
+        includeUpcoming
+        generatedAt
+        totals {
+            bookings
+            minutes
+            revenue
+            unpriced
+        }
+        therapists {
+            therapistId
+            therapistName
+            bookings
+            minutes
+            revenue
+            unpriced
+            services {
+                serviceId
+                serviceName
+                bookings
+                revenue
+            }
+            lines {
+                ...SalesLineFields
+            }
+        }
+        services {
+            serviceId
+            serviceName
+            isActive
+            bookings
+            minutes
+            revenue
+            unpriced
+            lines {
+                ...SalesLineFields
+            }
+        }
+        series {
+            key
+            bookings
+            revenue
+        }
+        unpriced {
+            bookingId
+            client
+            start
+            durationMin
+            therapistName
+            serviceName
+            reason
+        }
+    }
+}

@@ -1,5 +1,8 @@
 import type { AuthPayload, User } from "@/mods/auth/types";
-import type { Booking, Room, Therapist } from "@/mods/schedule/types";
+import type { Booking, Room, Service, Therapist } from "@/mods/schedule/types";
+import type { SalesReport } from "@/mods/reports/types";
+import { findServicePrice, priceDayOf } from "@/mods/schedule/lib/pricing";
+import { toDateKey } from "@/mods/schedule/lib/availability";
 import type { GraphqlError } from "@/lib/graphqlBaseQuery";
 
 /**
@@ -48,20 +51,130 @@ let rooms: Room[] = [
     { id: "room-4", name: "Room 4", color: "#993556" },
 ];
 
+const PRICES_FROM = "2025-01-01";
+let services: Service[] = [
+    {
+        id: "fuyu",
+        name: "Fuyu",
+        description: "",
+        isActive: true,
+        prices: [
+            {
+                id: "p1",
+                durationMin: 60,
+                days: [],
+                amount: 1099,
+                validFrom: PRICES_FROM,
+                validTo: null,
+            },
+            {
+                id: "p2",
+                durationMin: 80,
+                days: [],
+                amount: 1199,
+                validFrom: PRICES_FROM,
+                validTo: null,
+            },
+        ],
+    },
+    {
+        id: "natsu",
+        name: "Natsu",
+        description: "",
+        isActive: true,
+        prices: [
+            {
+                id: "p3",
+                durationMin: 60,
+                days: [],
+                amount: 1299,
+                validFrom: PRICES_FROM,
+                validTo: null,
+            },
+            {
+                id: "p4",
+                durationMin: 80,
+                days: [],
+                amount: 1399,
+                validFrom: PRICES_FROM,
+                validTo: null,
+            },
+        ],
+    },
+    {
+        id: "haru",
+        name: "Haru",
+        description: "",
+        isActive: true,
+        prices: [
+            {
+                id: "p5",
+                durationMin: 80,
+                days: [],
+                amount: 1599,
+                validFrom: PRICES_FROM,
+                validTo: null,
+            },
+        ],
+    },
+    {
+        id: "shiki",
+        name: "Shiki",
+        description: "",
+        isActive: true,
+        prices: [
+            {
+                id: "p6",
+                durationMin: 120,
+                days: [],
+                amount: 2499,
+                validFrom: PRICES_FROM,
+                validTo: null,
+            },
+        ],
+    },
+    {
+        id: "aki",
+        name: "Aki",
+        description: "",
+        isActive: true,
+        prices: [
+            {
+                id: "p7",
+                durationMin: null,
+                days: [1, 2, 3, 4],
+                amount: 699,
+                validFrom: PRICES_FROM,
+                validTo: null,
+            },
+            {
+                id: "p8",
+                durationMin: null,
+                days: [0, 5, 6],
+                amount: 799,
+                validFrom: PRICES_FROM,
+                validTo: null,
+            },
+        ],
+    },
+];
+
 let bookings: Booking[] = [
     {
         id: "b1",
         client: "Mr. Cruz",
         therapistId: "ana",
         roomId: "room-1",
+        serviceId: "haru",
         start: todayAt(15),
-        end: todayAt(17, 30),
+        end: todayAt(16, 20),
     },
     {
         id: "b2",
         client: "Ms. Reyes",
         therapistId: "ben",
         roomId: "room-2",
+        serviceId: "fuyu",
         start: todayAt(15),
         end: todayAt(16),
     },
@@ -70,6 +183,7 @@ let bookings: Booking[] = [
         client: "Mr. Lim",
         therapistId: "ben",
         roomId: "room-2",
+        serviceId: "natsu",
         start: todayAt(16, 30),
         end: todayAt(17, 30),
     },
@@ -78,6 +192,7 @@ let bookings: Booking[] = [
         client: "Mrs. Santos",
         therapistId: "carla",
         roomId: "room-3",
+        serviceId: "shiki",
         start: todayAt(15, 30),
         end: todayAt(17, 30),
     },
@@ -86,10 +201,38 @@ let bookings: Booking[] = [
         client: "Ms. Tan",
         therapistId: "dana",
         roomId: "room-4",
+        serviceId: "aki",
         start: todayAt(13, 30),
         end: todayAt(14, 30),
     },
 ];
+
+// A few weeks of past bookings, so reports have something to show
+const PAST_PLAN: [string, string, number][] = [
+    ["ana", "fuyu", 60],
+    ["ben", "natsu", 80],
+    ["carla", "aki", 90],
+    ["dana", "shiki", 120],
+    ["ana", "haru", 80],
+    ["ben", "fuyu", 80],
+];
+for (let day = 1; day <= 40; day++) {
+    for (let k = 0; k < 1 + (day % 3); k++) {
+        const [therapistId, serviceId, minutes] = PAST_PLAN[(day + k) % PAST_PLAN.length];
+        const start = new Date();
+        start.setDate(start.getDate() - day);
+        start.setHours(11 + k * 3, 0, 0, 0);
+        bookings.push({
+            id: `past-${day}-${k}`,
+            client: `Client ${day}-${k + 1}`,
+            therapistId,
+            roomId: `room-${(k % 4) + 1}`,
+            serviceId,
+            start: start.toISOString(),
+            end: new Date(start.getTime() + minutes * 60_000).toISOString(),
+        });
+    }
+}
 
 let nextId = 100;
 const newId = () => `mock-${nextId++}`;
@@ -168,6 +311,10 @@ export async function mockGraphql(
                             "createBooking",
                             "updateBooking",
                             "deleteBooking",
+                            "createService",
+                            "updateService",
+                            "deleteService",
+                            "readReports",
                         ],
                     },
                 },
@@ -220,6 +367,60 @@ export async function mockGraphql(
             if (!rooms.some((x) => x.id === id)) return notFound("Room");
             rooms = rooms.filter((x) => x.id !== id);
             return { data: { deleteRoom: true } };
+        case "Services": {
+            const all = Boolean(variables?.includeArchived);
+            return { data: { services: services.filter((s) => all || s.isActive) } };
+        }
+        case "CreateService": {
+            const input = variables!.input as Omit<Service, "id" | "prices"> & {
+                prices: Omit<Service["prices"][number], "id">[];
+            };
+            const svc: Service = {
+                ...input,
+                description: input.description ?? "",
+                isActive: input.isActive ?? true,
+                id: newId(),
+                prices: input.prices.map((p) => ({
+                    ...p,
+                    id: newId(),
+                    durationMin: p.durationMin ?? null,
+                    days: p.days ?? [],
+                    validTo: p.validTo ?? null,
+                })),
+            };
+            services = [...services, svc];
+            return { data: { createService: svc } };
+        }
+        case "UpdateService": {
+            const svc = services.find((x) => x.id === id);
+            if (!svc) return notFound("Service");
+            const input = sent(variables!.input as Partial<Service>);
+            const updated: Service = {
+                ...svc,
+                ...input,
+                prices: (input.prices ?? svc.prices).map((p) => ({
+                    ...p,
+                    id: p.id ?? newId(),
+                    durationMin: p.durationMin ?? null,
+                    days: p.days ?? [],
+                    validTo: p.validTo ?? null,
+                })),
+            };
+            services = services.map((x) => (x.id === id ? updated : x));
+            return { data: { updateService: updated } };
+        }
+        case "DeleteService":
+            if (bookings.some((b) => b.serviceId === id))
+                return {
+                    error: {
+                        message: "This service has bookings. Archive it instead.",
+                        code: "SERVICE_IN_USE",
+                    },
+                };
+            services = services.filter((x) => x.id !== id);
+            return { data: { deleteService: true } };
+        case "SalesReport":
+            return { data: { salesReport: mockSalesReport(variables!) } };
         case "Bookings": {
             const from = Date.parse(variables!.from as string);
             const to = Date.parse(variables!.to as string);
@@ -247,4 +448,152 @@ export async function mockGraphql(
         default:
             return { error: { message: `Mock has no handler for this operation` } };
     }
+}
+
+/**
+ * A simplified sales report over the mock bookings, in the browser's time zone. The real one
+ * is built by the server (src/mods/reports); this only keeps the page usable offline.
+ */
+function mockSalesReport(variables: Record<string, unknown>): SalesReport {
+    const period = variables.period as SalesReport["period"];
+    const includeUpcoming = Boolean(variables.includeUpcoming);
+    const d = new Date(`${variables.date as string}T00:00:00`);
+    let from: Date;
+    let to: Date;
+    if (period === "weekly") {
+        from = new Date(d);
+        from.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+        to = new Date(from);
+        to.setDate(from.getDate() + 7);
+    } else if (period === "monthly") {
+        from = new Date(d.getFullYear(), d.getMonth(), 1);
+        to = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+    } else {
+        from = new Date(d.getFullYear(), 0, 1);
+        to = new Date(d.getFullYear() + 1, 0, 1);
+    }
+    const bucketOf = (date: Date) =>
+        period === "annual" ? toDateKey(date).slice(0, 7) : toDateKey(date);
+    const keys: string[] = [];
+    for (const c = new Date(from); c < to;) {
+        const key = bucketOf(c);
+        if (!keys.includes(key)) keys.push(key);
+        if (period === "annual") c.setMonth(c.getMonth() + 1);
+        else c.setDate(c.getDate() + 1);
+    }
+    const series = keys.map((key) => ({ key, bookings: 0, revenue: 0 }));
+    const rows = therapists.map((t) => ({
+        therapistId: t.id,
+        therapistName: t.name,
+        bookings: 0,
+        minutes: 0,
+        revenue: 0,
+        unpriced: 0,
+        services: [] as SalesReport["therapists"][number]["services"],
+        lines: [] as SalesReport["therapists"][number]["lines"],
+    }));
+    const svcRows = services.map((s) => ({
+        serviceId: s.id,
+        serviceName: s.name,
+        isActive: s.isActive,
+        bookings: 0,
+        minutes: 0,
+        revenue: 0,
+        unpriced: 0,
+        lines: [] as SalesReport["services"][number]["lines"],
+    }));
+    const totals = { bookings: 0, minutes: 0, revenue: 0, unpriced: 0 };
+    const unpriced: SalesReport["unpriced"] = [];
+    const now = Date.now();
+
+    for (const b of bookings) {
+        const start = new Date(b.start);
+        const end = Date.parse(b.end);
+        if (start < from || start >= to || (!includeUpcoming && end > now)) continue;
+        const minutes = Math.round((end - start.getTime()) / 60_000);
+        const row = rows.find((r) => r.therapistId === b.therapistId);
+        const svc = services.find((s) => s.id === b.serviceId);
+        const svcRow = svcRows.find((r) => r.serviceId === b.serviceId);
+        const bucket = series.find((x) => x.key === bucketOf(start));
+        totals.bookings++;
+        totals.minutes += minutes;
+        if (bucket) bucket.bookings++;
+        if (row) {
+            row.bookings++;
+            row.minutes += minutes;
+        }
+        const rule = svc && findServicePrice(svc.prices, priceDayOf(start), minutes);
+        if (svcRow) {
+            svcRow.bookings++;
+            svcRow.minutes += minutes;
+        }
+        if (svc && row) {
+            const count = row.services.find((c) => c.serviceId === svc.id);
+            if (count) count.bookings++;
+            else
+                row.services.push({
+                    serviceId: svc.id,
+                    serviceName: svc.name,
+                    bookings: 1,
+                    revenue: 0,
+                });
+        }
+        if (!svc || !rule) {
+            totals.unpriced++;
+            if (row) row.unpriced++;
+            if (svcRow) svcRow.unpriced++;
+            unpriced.push({
+                bookingId: b.id,
+                client: b.client,
+                start: b.start,
+                durationMin: minutes,
+                therapistName: row?.therapistName ?? "Removed therapist",
+                serviceName: svc?.name ?? null,
+                reason: svc ? "noPrice" : "noService",
+            });
+            continue;
+        }
+        const amount = rule.amount;
+        totals.revenue += amount;
+        if (bucket) bucket.revenue += amount;
+        for (const target of [row, svcRow]) {
+            if (!target) continue;
+            target.revenue += amount;
+            const line = target.lines.find(
+                (l) =>
+                    l.serviceId === svc.id && l.durationMin === minutes && l.unitPrice === amount,
+            );
+            if (line) {
+                line.bookings++;
+                line.revenue += amount;
+            } else
+                target.lines.push({
+                    serviceId: svc.id,
+                    serviceName: svc.name,
+                    durationMin: minutes,
+                    unitPrice: amount,
+                    bookings: 1,
+                    revenue: amount,
+                });
+        }
+        const count = row?.services.find((c) => c.serviceId === svc.id);
+        if (count) count.revenue += amount;
+    }
+
+    const last = new Date(to);
+    last.setDate(last.getDate() - 1);
+    return {
+        period,
+        from: toDateKey(from),
+        to: toDateKey(last),
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        currency: "PHP",
+        includeUpcoming,
+        generatedAt: new Date().toISOString(),
+        totals,
+        therapists: rows,
+        services: svcRows.filter((s) => s.isActive || s.bookings > 0),
+        series,
+        unpriced,
+    };
 }
