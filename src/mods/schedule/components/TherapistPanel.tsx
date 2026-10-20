@@ -1,21 +1,22 @@
 "use client";
 
 import { useId, useState } from "react";
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { toggleLeave, toggleOffDay } from "@/mods/schedule/scheduleSlice";
+import { useUpdateTherapistMutation } from "@/mods/schedule/scheduleApi";
+import { useScheduleData } from "@/mods/schedule/lib/useScheduleData";
+import type { GraphqlError } from "@/lib/graphqlBaseQuery";
 import { WEEKDAY_LABELS, isTherapistWorking, toDateKey } from "@/mods/schedule/lib/availability";
-import type { Weekday } from "@/mods/schedule/types";
+import type { Therapist, Weekday } from "@/mods/schedule/types";
 import { useIsMobile } from "@/lib/useMediaQuery";
 
 /**
  * Roster for the visible day: weekly off-days and one-off leave.
- * Edits update Redux, and the calendar re-asks for its columns.
- * Later these become mutations on the backend.
+ * Each toggle is an `updateTherapist` mutation; the cached roster is patched optimistically,
+ * so the calendar columns change straight away (and change back if the server refuses).
  * Collapsible: closed by default on phones (it sits below a tall calendar), open on desktop.
  */
 export default function TherapistPanel({ date }: { date: Date }) {
-    const dispatch = useAppDispatch();
-    const { therapists, rooms } = useAppSelector((s) => s.schedule);
+    const { therapists, rooms } = useScheduleData(null);
+    const [updateTherapist, { error }] = useUpdateTherapistMutation();
     const dateKey = toDateKey(date);
     const dateLabel = date.toLocaleDateString(undefined, {
         weekday: "short",
@@ -28,6 +29,20 @@ export default function TherapistPanel({ date }: { date: Date }) {
     const expanded = expandedChoice ?? !isMobile; // until the user toggles, follow the screen size
     const bodyId = useId();
     const offToday = therapists.filter((t) => !isTherapistWorking(t, date)).length;
+
+    function toggleOffDay(t: Therapist, weekday: Weekday) {
+        const offDays = t.offDays.includes(weekday)
+            ? t.offDays.filter((d) => d !== weekday)
+            : [...t.offDays, weekday].sort((a, b) => a - b);
+        updateTherapist({ id: t.id, input: { offDays } });
+    }
+
+    function toggleLeave(t: Therapist) {
+        const leaveDates = t.leaveDates.includes(dateKey)
+            ? t.leaveDates.filter((d) => d !== dateKey)
+            : [...t.leaveDates, dateKey].sort();
+        updateTherapist({ id: t.id, input: { leaveDates } });
+    }
 
     return (
         <aside className="card roster">
@@ -54,6 +69,11 @@ export default function TherapistPanel({ date }: { date: Date }) {
 
             <div id={bodyId} className="roster__body" hidden={!expanded}>
                 <p className="muted roster__hint">Weekly days off, and leave on {dateLabel}</p>
+                {error && (
+                    <p className="alert" role="alert">
+                        {(error as GraphqlError).message}
+                    </p>
+                )}
 
                 <ul className="roster__list">
                     {therapists.map((t) => {
@@ -88,14 +108,7 @@ export default function TherapistPanel({ date }: { date: Date }) {
                                                 title={
                                                     off ? `${label}: day off` : `${label}: working`
                                                 }
-                                                onClick={() =>
-                                                    dispatch(
-                                                        toggleOffDay({
-                                                            therapistId: t.id,
-                                                            weekday: i as Weekday,
-                                                        }),
-                                                    )
-                                                }
+                                                onClick={() => toggleOffDay(t, i as Weekday)}
                                             >
                                                 {label.charAt(0)}
                                             </button>
@@ -107,11 +120,7 @@ export default function TherapistPanel({ date }: { date: Date }) {
                                     <input
                                         type="checkbox"
                                         checked={onLeave}
-                                        onChange={() =>
-                                            dispatch(
-                                                toggleLeave({ therapistId: t.id, date: dateKey }),
-                                            )
-                                        }
+                                        onChange={() => toggleLeave(t)}
                                     />
                                     On leave {dateLabel}
                                 </label>

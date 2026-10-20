@@ -1,8 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { addBooking, removeBooking, updateBooking } from "@/mods/schedule/scheduleSlice";
+import {
+    useCreateBookingMutation,
+    useDeleteBookingMutation,
+    useUpdateBookingMutation,
+} from "@/mods/schedule/scheduleApi";
+import { dayRange, useScheduleData } from "@/mods/schedule/lib/useScheduleData";
+import type { Booking } from "@/mods/schedule/types";
+import type { GraphqlError } from "@/lib/graphqlBaseQuery";
 import {
     CLOSING_TIME,
     OPENING_TIME,
@@ -18,7 +24,8 @@ import {
 
 /** What the dialog opens with: a new slot, or an existing booking to edit. */
 export interface BookingDraft {
-    bookingId?: string;
+    /** Set when editing: the booking as it was when the dialog opened */
+    booking?: Booking;
     therapistId: string;
     start: Date;
     durationMin: number;
@@ -35,9 +42,10 @@ export const formatDuration = (min: number) => {
 const formatTime = (d: Date) => d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 
 /**
- * Create / edit / cancel a booking in a native <dialog>.
+ * Create / edit / cancel a booking in a native <dialog>, saved through the GraphQL API.
  * Rooms already taken at the chosen time are disabled; the form checks the therapist's
- * off-days, leave, double-booking and opening hours before saving.
+ * off-days, leave, double-booking and opening hours before saving, and shows the server's
+ * error if it still refuses (e.g. someone else booked the slot meanwhile).
  */
 export default function BookingDialog({
     draft,
@@ -66,7 +74,7 @@ export default function BookingDialog({
             {/* Remount the form for each draft so its fields reset */}
             {draft && (
                 <BookingForm
-                    key={`${draft.bookingId ?? "new"}-${draft.start.getTime()}-${draft.therapistId}`}
+                    key={`${draft.booking?.id ?? "new"}-${draft.start.getTime()}-${draft.therapistId}`}
                     draft={draft}
                     onDone={() => ref.current?.close()}
                 />
@@ -76,9 +84,7 @@ export default function BookingDialog({
 }
 
 function BookingForm({ draft, onDone }: { draft: BookingDraft; onDone: () => void }) {
-    const dispatch = useAppDispatch();
-    const { therapists, rooms, bookings } = useAppSelector((s) => s.schedule);
-    const existing = draft.bookingId ? bookings.find((b) => b.id === draft.bookingId) : undefined;
+    const existing = draft.booking;
     const ignoreId = existing?.id;
 
     const initialDuration = draft.durationMin;
@@ -86,6 +92,19 @@ function BookingForm({ draft, onDone }: { draft: BookingDraft; onDone: () => voi
     const [therapistId, setTherapistId] = useState(draft.therapistId);
     const [date, setDate] = useState(toDateKey(draft.start));
     const [time, setTime] = useState(toTimeValue(draft.start));
+
+    // Bookings on the chosen day (shared with the calendar's cache in Day view)
+    const range = useMemo(() => {
+        const day = fromDateAndTime(date, "00:00");
+        return Number.isNaN(day.getTime()) ? null : dayRange(day);
+    }, [date]);
+    const { therapists, rooms, bookings } = useScheduleData(range);
+
+    const [createBooking, createState] = useCreateBookingMutation();
+    const [updateBooking, updateState] = useUpdateBookingMutation();
+    const [deleteBooking, deleteState] = useDeleteBookingMutation();
+    const saving = createState.isLoading || updateState.isLoading || deleteState.isLoading;
+    const [serverError, setServerError] = useState<string | null>(null);
     const [durationMin, setDurationMin] = useState(initialDuration);
     const [customDuration, setCustomDuration] = useState(
         !DURATION_PRESETS.includes(initialDuration),
@@ -130,25 +149,36 @@ function BookingForm({ draft, onDone }: { draft: BookingDraft; onDone: () => voi
         else if (roomTaken(roomId)) problems.push("That room is already booked at that time.");
     }
 
-    function handleSubmit(e: FormEvent) {
+    async function handleSubmit(e: FormEvent) {
         e.preventDefault();
-        if (problems.length || !client.trim()) return;
-        const data = {
+        if (problems.length || !client.trim() || saving) return;
+        const input = {
             client: client.trim(),
             therapistId,
             roomId,
             start: start.toISOString(),
             end: end.toISOString(),
         };
-        dispatch(existing ? updateBooking({ ...data, id: existing.id }) : addBooking(data));
-        onDone();
+        setServerError(null);
+        try {
+            if (existing) await updateBooking({ id: existing.id, input }).unwrap();
+            else await createBooking(input).unwrap();
+            onDone();
+        } catch (err) {
+            setServerError((err as GraphqlError).message);
+        }
     }
 
-    function handleCancelBooking() {
-        if (!existing) return;
+    async function handleCancelBooking() {
+        if (!existing || saving) return;
         if (!confirmingCancel) return setConfirmingCancel(true);
-        dispatch(removeBooking(existing.id));
-        onDone();
+        setServerError(null);
+        try {
+            await deleteBooking(existing.id).unwrap();
+            onDone();
+        } catch (err) {
+            setServerError((err as GraphqlError).message);
+        }
     }
 
     return (
@@ -270,18 +300,28 @@ function BookingForm({ draft, onDone }: { draft: BookingDraft; onDone: () => voi
                 </p>
             )}
 
-            {problems.length > 0 && (
+            {(problems.length > 0 || serverError) && (
                 <ul className="alert dialog__problems" role="alert">
                     {problems.map((p) => (
                         <li key={p}>{p}</li>
                     ))}
+                    {serverError && <li>{serverError}</li>}
                 </ul>
             )}
 
             <footer className="dialog__footer">
                 {existing && (
-                    <button type="button" className="btn btn--danger" onClick={handleCancelBooking}>
-                        {confirmingCancel ? "Confirm cancel" : "Cancel booking"}
+                    <button
+                        type="button"
+                        className="btn btn--danger"
+                        onClick={handleCancelBooking}
+                        disabled={saving}
+                    >
+                        {deleteState.isLoading
+                            ? "Cancelling…"
+                            : confirmingCancel
+                              ? "Confirm cancel"
+                              : "Cancel booking"}
                     </button>
                 )}
                 <span className="dialog__spacer" />
@@ -290,9 +330,13 @@ function BookingForm({ draft, onDone }: { draft: BookingDraft; onDone: () => voi
                 </button>
                 <button
                     className="btn btn--primary"
-                    disabled={problems.length > 0 || !client.trim()}
+                    disabled={problems.length > 0 || !client.trim() || saving}
                 >
-                    {existing ? "Save changes" : "Book"}
+                    {createState.isLoading || updateState.isLoading
+                        ? "Saving…"
+                        : existing
+                          ? "Save changes"
+                          : "Book"}
                 </button>
             </footer>
         </form>

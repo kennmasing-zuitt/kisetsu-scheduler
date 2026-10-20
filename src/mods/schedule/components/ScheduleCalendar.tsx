@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import FullCalendar from "@fullcalendar/react";
 import type {
     CalendarRef,
@@ -23,7 +23,10 @@ import "@fullcalendar/react/themes/classic/theme.css";
 import "@fullcalendar/react/themes/classic/palette.css";
 
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { updateBooking } from "@/mods/schedule/scheduleSlice";
+import { selectVisibleRange, setRange } from "@/mods/schedule/scheduleSlice";
+import { useUpdateBookingMutation } from "@/mods/schedule/scheduleApi";
+import { useScheduleData } from "@/mods/schedule/lib/useScheduleData";
+import type { GraphqlError } from "@/lib/graphqlBaseQuery";
 import type { BookingDraft } from "./BookingDialog";
 import {
     CLOSING_TIME,
@@ -60,12 +63,6 @@ function toResources(therapists: Therapist[], start: Date, end: Date): ResourceI
     }));
 }
 
-export interface VisibleRange {
-    start: Date;
-    end: Date;
-    viewType: string;
-}
-
 /**
  * Per-hour schedule with one column per therapist (FullCalendar resource time grid).
  *
@@ -73,20 +70,22 @@ export interface VisibleRange {
  * - Week view: columns can't change per day, so off-days are greyed out via businessHours
  *   and leave days via background events; bookings there are blocked.
  * - Drag down a column (10-minute steps) to open the booking dialog, click a booking to
- *   edit or cancel it, drag/resize to move it.
+ *   edit or cancel it, drag/resize to move it (saved right away; reverted if the server refuses).
+ * - The visible dates go to the schedule slice, so the page and this calendar share one
+ *   `bookings(from, to)` query per view.
  * - Phones: Day view only, compact toolbar, columns keep a minimum width and the grid
  *   scrolls sideways, and a shorter long-press starts a drag on touch screens.
  */
 export default function ScheduleCalendar({
-    onRangeChange,
     onOpenBooking,
 }: {
-    onRangeChange?: (range: VisibleRange) => void;
     /** Open the booking dialog for a new slot or an existing booking. */
     onOpenBooking: (draft: BookingDraft) => void;
 }) {
     const dispatch = useAppDispatch();
-    const { therapists, rooms, bookings } = useAppSelector((s) => s.schedule);
+    const range = useAppSelector(selectVisibleRange);
+    const { therapists, rooms, bookings } = useScheduleData(range);
+    const [updateBooking] = useUpdateBookingMutation();
     const calendarRef = useRef<CalendarRef>(null);
     const isMobile = useIsMobile();
 
@@ -102,11 +101,12 @@ export default function ScheduleCalendar({
     const roomById = useMemo(() => new Map(rooms.map((r) => [r.id, r])), [rooms]);
 
     // The dates on screen, kept in sync by datesSet. Starts as today (the initial Day view).
-    const [visible, setVisible] = useState(() => {
+    const visible = useMemo(() => {
+        if (range) return { start: new Date(range.from), end: new Date(range.to) };
         const start = new Date();
         start.setHours(0, 0, 0, 0);
         return { start, end: new Date(start.getTime() + DAY_MS) };
-    });
+    }, [range]);
 
     /**
      * Therapist columns for the visible dates, recomputed when the dates or the roster change.
@@ -114,7 +114,7 @@ export default function ScheduleCalendar({
      * Passed as a plain array on purpose: a resources *function* that answers asynchronously
      * makes FullCalendar v7 update itself before it has mounted, which React reports as
      * "Can't perform a React state update on a component that hasn't mounted yet".
-     * When therapists come from the API, fetch them with RTK Query and keep passing an array.
+     * Therapists come from RTK Query (getTherapists) and are passed on as an array.
      */
     const resources = useMemo(
         () => toResources(therapists, visible.start, visible.end),
@@ -173,14 +173,14 @@ export default function ScheduleCalendar({
         if (!booking) return;
         const start = new Date(booking.start);
         onOpenBooking({
-            bookingId: booking.id,
+            booking,
             therapistId: booking.therapistId,
             start,
             durationMin: Math.round((Date.parse(booking.end) - start.getTime()) / 60000),
         });
     }
 
-    function handleEventChange({ event, revert }: EventChangeInfo) {
+    async function handleEventChange({ event, revert }: EventChangeInfo) {
         const booking = bookings.find((b) => b.id === event.id);
         if (!booking || !event.start) return revert();
         const start = event.start;
@@ -195,25 +195,25 @@ export default function ScheduleCalendar({
             window.alert("No room is free at that time.");
             return revert();
         }
-        dispatch(
-            updateBooking({
-                ...booking,
-                therapistId: event.getResources()[0]?.id ?? booking.therapistId,
-                roomId: room.id,
-                start: start.toISOString(),
-                end: end.toISOString(),
-            }),
-        );
+        try {
+            await updateBooking({
+                id: booking.id,
+                input: {
+                    therapistId: event.getResources()[0]?.id ?? booking.therapistId,
+                    roomId: room.id,
+                    start: start.toISOString(),
+                    end: end.toISOString(),
+                },
+            }).unwrap();
+        } catch (err) {
+            revert();
+            window.alert((err as GraphqlError).message);
+        }
     }
 
-    function handleDatesSet({ start, end, view }: DatesSetInfo) {
-        // Only update when the dates really changed, so re-renders don't loop
-        setVisible((prev) =>
-            prev.start.getTime() === start.getTime() && prev.end.getTime() === end.getTime()
-                ? prev
-                : { start, end },
-        );
-        onRangeChange?.({ start, end, viewType: view.type });
+    function handleDatesSet({ start, end }: DatesSetInfo) {
+        // The slice ignores unchanged dates, so re-renders don't loop
+        dispatch(setRange({ from: start.toISOString(), to: end.toISOString() }));
     }
 
     return (

@@ -1,0 +1,21 @@
+query Bookings($from: DateTime!, $to: DateTime!) {
+    bookings(from: $from, to: $to) {
+        ...BookingFields
+    }
+}
+
+mutation CreateBooking($input: CreateBookingInput!) {
+    createBooking(input: $input) {
+        ...BookingFields
+    }
+}
+
+mutation UpdateBooking($id: ID!, $input: UpdateBookingInput!) {
+    updateBooking(id: $id, input: $input) {
+        ...BookingFields
+    }
+}
+
+mutation DeleteBooking($id: ID!) {
+    deleteBooking(id: $id)
+}

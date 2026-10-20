@@ -149,9 +149,12 @@ src/
 │  │  └─ usersApi.ts
 │  └─ schedule/
 │     ├─ components/           ScheduleCalendar, TherapistPanel, BookingDialog
-│     ├─ lib/availability.ts   Scheduling rules
-│     ├─ scheduleSlice.ts      Mock therapists, rooms, bookings
-│     └─ types.ts
+│     ├─ graphql/              schedule.fragment.graphql, therapists/rooms/bookings.graphql
+│     ├─ lib/availability.ts   Scheduling rules (instant feedback; the server enforces them too)
+│     ├─ lib/useScheduleData.ts  Therapists + rooms + bookings for a range, from RTK Query
+│     ├─ scheduleApi.ts        RTK Query endpoints (injected into baseApi)
+│     ├─ scheduleSlice.ts      Visible calendar range
+│     └─ types.ts              App-facing schedule types (derived from codegen)
 ├─ components/                 Shared UI: layout/ (Navbar, Sidebar), ui/ (Loader)
 ├─ lib/
 │  ├─ graphqlBaseQuery.ts      RTK Query base query (Bearer token, errors, auto sign-out)
@@ -196,10 +199,14 @@ therapist, 1-hour rows (Day / Week switcher).
 - **Roster panel:** toggle weekly days off and leave for the visible day; the columns update
   straight away. A banner flags any booking assigned to a therapist who is off.
 
-Data lives in `mods/schedule/scheduleSlice.ts` (mock therapists, rooms, bookings) and the rules in
-`mods/schedule/lib/availability.ts`. When the backend has a scheduling module, back the `resources`
-function in `ScheduleCalendar.tsx` with a query such as `availableTherapists(date)` and move
-bookings into RTK Query endpoints.
+Data comes from the server's schedule module through `mods/schedule/scheduleApi.ts`:
+`therapists`, `rooms` and `bookings(from, to)` for the visible dates (kept in
+`scheduleSlice.ts`), plus `createBooking` / `updateBooking` / `deleteBooking` and
+`updateTherapist` for the roster toggles. Roster toggles and drag-to-move update the cache
+optimistically and roll back if the server refuses; the booking dialog shows the server's error
+(e.g. `ROOM_TAKEN` when someone else took the slot). The same rules live in
+`mods/schedule/lib/availability.ts` for instant feedback. Run `npm run seed` on the server for
+sample therapists and rooms.
 
 **License:** resource views are FullCalendar Premium (`@fullcalendar/react-scheduler`). The
 default `CC-Attribution-NonCommercial-NoDerivatives` key is for trials and non-commercial use;

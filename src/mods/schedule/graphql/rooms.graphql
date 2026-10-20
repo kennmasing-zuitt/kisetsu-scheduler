@@ -1,0 +1,21 @@
+query Rooms {
+    rooms {
+        ...RoomFields
+    }
+}
+
+mutation CreateRoom($input: CreateRoomInput!) {
+    createRoom(input: $input) {
+        ...RoomFields
+    }
+}
+
+mutation UpdateRoom($id: ID!, $input: UpdateRoomInput!) {
+    updateRoom(id: $id, input: $input) {
+        ...RoomFields
+    }
+}
+
+mutation DeleteRoom($id: ID!) {
+    deleteRoom(id: $id)
+}

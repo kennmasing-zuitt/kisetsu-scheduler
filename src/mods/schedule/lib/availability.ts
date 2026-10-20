@@ -1,9 +1,10 @@
 import type { Booking, Room, Therapist, Weekday } from "@/mods/schedule/types";
 
 /**
- * Availability rules in one place. When the backend has a scheduling module,
- * replace getWorkingTherapists with a GraphQL query such as
- * `availableTherapists(date)` and keep the rest of the UI unchanged.
+ * Availability rules in one place, for instant feedback in the UI (disabled rooms, warnings,
+ * blocked drags). The server enforces the same rules on every create/update
+ * (kisetsu-scheduler-server: src/mods/schedule/service/impl/assertBookingAllowed.ts) and is the
+ * source of truth; keep OPENING_TIME / CLOSING_TIME in sync with its SCHEDULE_* settings.
  */
 
 export const OPENING_TIME = "10:00";
