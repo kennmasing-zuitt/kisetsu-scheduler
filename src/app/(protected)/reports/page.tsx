@@ -5,7 +5,7 @@ import Loader from "@/components/ui/Loader";
 import { usePermissions } from "@/mods/auth/usePermissions";
 import { useGetSalesReportQuery } from "@/mods/reports/reportsApi";
 import { PERIODS, rangeLabel, shiftDate } from "@/mods/reports/lib/period";
-import { downloadSalesReportCsv } from "@/mods/reports/lib/csv";
+import { downloadSalesReportExcel } from "@/mods/reports/lib/excel";
 import SalesReportView from "@/mods/reports/components/SalesReportView";
 import { toDateKey } from "@/mods/schedule/lib/availability";
 import type { ReportPeriod } from "@/mods/reports/types";
@@ -18,6 +18,8 @@ export default function ReportsPage() {
     const [period, setPeriod] = useState<ReportPeriod>("weekly");
     const [date, setDate] = useState(() => toDateKey(new Date()));
     const [includeUpcoming, setIncludeUpcoming] = useState(false);
+    const [exporting, setExporting] = useState(false);
+    const [exportError, setExportError] = useState<string | null>(null);
 
     const {
         data: report,
@@ -29,6 +31,19 @@ export default function ReportsPage() {
         // Refresh a report older than a minute when it's shown again
         { skip: !allowed, refetchOnMountOrArgChange: 60 },
     );
+
+    async function exportExcel() {
+        if (!report || exporting) return;
+        setExporting(true);
+        setExportError(null);
+        try {
+            await downloadSalesReportExcel(report);
+        } catch (err) {
+            setExportError(err instanceof Error ? err.message : "Couldn't create the Excel file");
+        } finally {
+            setExporting(false);
+        }
+    }
 
     if (permsLoading) return <Loader label="Checking your access…" />;
 
@@ -47,9 +62,10 @@ export default function ReportsPage() {
                         <button
                             type="button"
                             className="btn btn--ghost"
-                            onClick={() => downloadSalesReportCsv(report)}
+                            onClick={exportExcel}
+                            disabled={exporting}
                         >
-                            Download CSV
+                            {exporting ? "Preparing…" : "Download Excel"}
                         </button>
                         <button
                             type="button"
@@ -133,6 +149,11 @@ export default function ReportsPage() {
 
                     {report && <h2 className="print-only">{rangeLabel(report)}</h2>}
                     {error && <p className="alert">{(error as GraphqlError).message}</p>}
+                    {exportError && (
+                        <p className="alert" role="alert">
+                            {exportError}
+                        </p>
+                    )}
                     {isLoading && <Loader label="Building report…" />}
                     {report && (
                         <div className={isFetching ? "is-refreshing" : undefined}>

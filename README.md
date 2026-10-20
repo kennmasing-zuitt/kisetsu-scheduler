@@ -163,7 +163,7 @@ src/
 │  └─ reports/
 │     ├─ components/           SalesReportView, SalesChart, TherapistServiceTable, …
 │     ├─ graphql/reports.graphql  SalesReport
-│     ├─ lib/                  period.ts (ranges, labels), csv.ts (Download CSV)
+│     ├─ lib/                  period.ts (ranges, labels), excel.ts (Download Excel, ExcelJS)
 │     ├─ reportsApi.ts         RTK Query endpoint (injected into baseApi)
 │     └─ types.ts
 ├─ components/                 Shared UI: layout/ (Navbar, Sidebar), ui/ (Loader, Dialog)
@@ -237,8 +237,11 @@ whenever a report runs.
 **Reports** (`/reports`, needs `readReports`) shows a weekly (Mon–Sun), monthly or annual sales
 report: revenue, services rendered per therapist and per service, the prices that applied, a
 revenue chart, and any bookings that couldn't be priced. Only bookings that have ended count,
-unless **Include upcoming bookings** is ticked. **Download CSV** exports it for Excel / Google
-Sheets; **Print** prints it without the app chrome.
+unless **Include upcoming bookings** is ticked. **Download Excel** saves an `.xlsx` workbook built
+in the browser with [ExcelJS](https://github.com/exceljs/exceljs) (loaded only when you export):
+Summary, By therapist, By service & price, By day / By month and Unpriced sheets, with styled
+headers, frozen panes, filters, ₱ formats and live `SUM` formulas for the totals. **Print**
+prints the page without the app chrome.
 
 **License:** resource views are FullCalendar Premium (`@fullcalendar/react-scheduler`). The
 default `CC-Attribution-NonCommercial-NoDerivatives` key is for trials and non-commercial use;
