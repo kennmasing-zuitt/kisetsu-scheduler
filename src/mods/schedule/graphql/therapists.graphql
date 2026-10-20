@@ -1,0 +1,21 @@
+query Therapists {
+    therapists {
+        ...TherapistFields
+    }
+}
+
+mutation CreateTherapist($input: CreateTherapistInput!) {
+    createTherapist(input: $input) {
+        ...TherapistFields
+    }
+}
+
+mutation UpdateTherapist($id: ID!, $input: UpdateTherapistInput!) {
+    updateTherapist(id: $id, input: $input) {
+        ...TherapistFields
+    }
+}
+
+mutation DeleteTherapist($id: ID!) {
+    deleteTherapist(id: $id)
+}

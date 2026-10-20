@@ -1,0 +1,22 @@
+# Shared schedule shapes. Used by the therapist, room and booking operations.
+fragment TherapistFields on Therapist {
+    id
+    name
+    offDays
+    leaveDates
+}
+
+fragment RoomFields on Room {
+    id
+    name
+    color
+}
+
+fragment BookingFields on Booking {
+    id
+    client
+    therapistId
+    roomId
+    start
+    end
+}

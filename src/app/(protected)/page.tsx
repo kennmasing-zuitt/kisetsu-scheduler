@@ -1,11 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useAppSelector } from "@/store/hooks";
+import { useGetBookingsQuery } from "@/mods/schedule/scheduleApi";
+import { dayRange } from "@/mods/schedule/lib/useScheduleData";
 
 export default function HomePage() {
     const user = useAppSelector((s) => s.auth.user);
-    const eventCount = useAppSelector((s) => s.schedule.bookings.length);
+    const [today] = useState(() => dayRange(new Date()));
+    const { data: todaysBookings } = useGetBookingsQuery(today);
+    const eventCount = todaysBookings?.length;
 
     return (
         <>
@@ -30,7 +35,9 @@ export default function HomePage() {
                 <Link href="/schedule" className="card card--link">
                     <h2>Schedule</h2>
                     <p className="muted">
-                        Therapist schedule · {eventCount} booking{eventCount === 1 ? "" : "s"}
+                        Therapist schedule
+                        {eventCount !== undefined &&
+                            ` · ${eventCount} booking${eventCount === 1 ? "" : "s"} today`}
                     </p>
                 </Link>
             </div>

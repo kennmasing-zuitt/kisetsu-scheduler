@@ -5,8 +5,9 @@ import dynamic from "next/dynamic";
 import Loader from "@/components/ui/Loader";
 import TherapistPanel from "@/mods/schedule/components/TherapistPanel";
 import BookingDialog, { type BookingDraft } from "@/mods/schedule/components/BookingDialog";
-import type { VisibleRange } from "@/mods/schedule/components/ScheduleCalendar";
 import { useAppSelector } from "@/store/hooks";
+import { selectVisibleRange } from "@/mods/schedule/scheduleSlice";
+import { useScheduleData } from "@/mods/schedule/lib/useScheduleData";
 import {
     getWorkingTherapists,
     isTherapistWorking,
@@ -20,17 +21,20 @@ const ScheduleCalendar = dynamic(() => import("@/mods/schedule/components/Schedu
 });
 
 export default function SchedulePage() {
-    const [range, setRange] = useState<VisibleRange | null>(null);
     const [draft, setDraft] = useState<BookingDraft | null>(null);
-    const { therapists, bookings } = useAppSelector((s) => s.schedule);
-    const day = range?.start ?? new Date();
+    // The calendar writes its visible dates to the schedule slice; same range = same cached query
+    const range = useAppSelector(selectVisibleRange);
+    const { therapists, bookings, isLoading, error } = useScheduleData(range);
+    const day = useMemo(() => (range ? new Date(range.from) : new Date()), [range]);
 
     // Bookings in view whose therapist is off that day have no column to show in, so flag them.
     const hidden = useMemo(() => {
         if (!range) return [];
+        const from = new Date(range.from);
+        const to = new Date(range.to);
         return bookings.filter((b) => {
             const start = new Date(b.start);
-            if (start < range.start || start >= range.end) return false;
+            if (start < from || start >= to) return false;
             const t = therapists.find((x) => x.id === b.therapistId);
             return !t || !isTherapistWorking(t, start);
         });
@@ -44,6 +48,8 @@ export default function SchedulePage() {
         if (therapist) setDraft({ therapistId: therapist.id, start, durationMin: 60 });
     }
 
+    if (isLoading) return <Loader label="Loading schedule…" />;
+
     return (
         <>
             <div className="page__header">
@@ -53,10 +59,28 @@ export default function SchedulePage() {
                         Drag down a therapist&apos;s column or click a booking to edit it
                     </p>
                 </div>
-                <button type="button" className="btn btn--primary" onClick={openNewBooking}>
+                <button
+                    type="button"
+                    className="btn btn--primary"
+                    onClick={openNewBooking}
+                    disabled={therapists.length === 0}
+                >
                     + New booking
                 </button>
             </div>
+
+            {error && (
+                <p className="alert" role="alert">
+                    Couldn&apos;t load the schedule: {error.message}
+                </p>
+            )}
+
+            {!error && therapists.length === 0 && (
+                <p className="alert" role="status">
+                    No therapists yet. Add some on the server (run <code>npm run seed</code> for
+                    sample therapists and rooms).
+                </p>
+            )}
 
             {hidden.length > 0 && (
                 <p className="alert" role="status">
@@ -69,7 +93,7 @@ export default function SchedulePage() {
 
             <div className="schedule-layout">
                 <div className="card calendar-card">
-                    <ScheduleCalendar onRangeChange={setRange} onOpenBooking={setDraft} />
+                    <ScheduleCalendar onOpenBooking={setDraft} />
                 </div>
                 <TherapistPanel date={day} />
             </div>
