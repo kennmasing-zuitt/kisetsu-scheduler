@@ -136,26 +136,29 @@ src/
 │     ├─ layout.tsx            AuthGuard + Navbar + collapsible Sidebar
 │     ├─ page.tsx              Home
 │     ├─ users/page.tsx
-│     └─ schedule/page.tsx     Loads ScheduleCalendar client-side only
+│     ├─ schedule/page.tsx     Loads ScheduleCalendar client-side only
+│     └─ manage/page.tsx       Therapists & rooms: add, edit, delete
 ├─ mods/                       One folder per module (feature): its components, GraphQL, API, state, types
 │  ├─ auth/
 │  │  ├─ components/           AuthForm, AuthGuard, GuestGuard
 │  │  ├─ graphql/auth.graphql  Register, Login, Logout, Me
 │  │  ├─ authApi.ts            RTK Query endpoints (injected into baseApi)
 │  │  ├─ authSlice.ts          Token + current user
+│  │  ├─ usePermissions.ts     can("createRoom") from the `session` query (UI only)
 │  │  └─ types.ts              App-facing auth types (derived from codegen)
 │  ├─ users/
 │  │  ├─ graphql/              user.fragment.graphql (UserFields), users.graphql
 │  │  └─ usersApi.ts
 │  └─ schedule/
-│     ├─ components/           ScheduleCalendar, TherapistPanel, BookingDialog
+│     ├─ components/           ScheduleCalendar, TherapistPanel, BookingDialog,
+│     │                        ManageTherapists/ManageRooms + TherapistDialog/RoomDialog
 │     ├─ graphql/              schedule.fragment.graphql, therapists/rooms/bookings.graphql
 │     ├─ lib/availability.ts   Scheduling rules (instant feedback; the server enforces them too)
 │     ├─ lib/useScheduleData.ts  Therapists + rooms + bookings for a range, from RTK Query
 │     ├─ scheduleApi.ts        RTK Query endpoints (injected into baseApi)
 │     ├─ scheduleSlice.ts      Visible calendar range
 │     └─ types.ts              App-facing schedule types (derived from codegen)
-├─ components/                 Shared UI: layout/ (Navbar, Sidebar), ui/ (Loader)
+├─ components/                 Shared UI: layout/ (Navbar, Sidebar), ui/ (Loader, Dialog)
 ├─ lib/
 │  ├─ graphqlBaseQuery.ts      RTK Query base query (Bearer token, errors, auto sign-out)
 │  ├─ useMediaQuery.ts
@@ -206,7 +209,10 @@ Data comes from the server's schedule module through `mods/schedule/scheduleApi.
 optimistically and roll back if the server refuses; the booking dialog shows the server's error
 (e.g. `ROOM_TAKEN` when someone else took the slot). The same rules live in
 `mods/schedule/lib/availability.ts` for instant feedback. Run `npm run seed` on the server for
-sample therapists and rooms.
+sample therapists and rooms, or add them on the **Therapists & rooms** page (`/manage`). Its
+buttons follow the signed-in user's permissions (`createTherapist`, `updateRoom`, …; a super
+admin has all of them), and deleting is refused while a therapist or room has upcoming
+bookings.
 
 **License:** resource views are FullCalendar Premium (`@fullcalendar/react-scheduler`). The
 default `CC-Attribution-NonCommercial-NoDerivatives` key is for trials and non-commercial use;

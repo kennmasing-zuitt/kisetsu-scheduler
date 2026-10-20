@@ -13,7 +13,7 @@ import * as types from "./graphql";
  * Learn more about it here: https://the-guild.dev/graphql/codegen/plugins/presets/preset-client#reducing-bundle-size
  */
 type Documents = {
-    "mutation Register($input: RegisterInput!) {\n  register(input: $input) {\n    token\n    user {\n      ...UserFields\n    }\n  }\n}\n\nmutation Login($input: LoginInput!) {\n  login(input: $input) {\n    token\n    user {\n      ...UserFields\n    }\n  }\n}\n\nmutation Logout {\n  logout\n}\n\nquery Me {\n  me {\n    ...UserFields\n  }\n}": typeof types.RegisterDocument;
+    "mutation Register($input: RegisterInput!) {\n  register(input: $input) {\n    token\n    user {\n      ...UserFields\n    }\n  }\n}\n\nmutation Login($input: LoginInput!) {\n  login(input: $input) {\n    token\n    user {\n      ...UserFields\n    }\n  }\n}\n\nmutation Logout {\n  logout\n}\n\nquery Me {\n  me {\n    ...UserFields\n  }\n}\n\nquery Session {\n  session {\n    effectivePerms\n  }\n}": typeof types.RegisterDocument;
     "query Bookings($from: DateTime!, $to: DateTime!) {\n  bookings(from: $from, to: $to) {\n    ...BookingFields\n  }\n}\n\nmutation CreateBooking($input: CreateBookingInput!) {\n  createBooking(input: $input) {\n    ...BookingFields\n  }\n}\n\nmutation UpdateBooking($id: ID!, $input: UpdateBookingInput!) {\n  updateBooking(id: $id, input: $input) {\n    ...BookingFields\n  }\n}\n\nmutation DeleteBooking($id: ID!) {\n  deleteBooking(id: $id)\n}": typeof types.BookingsDocument;
     "query Rooms {\n  rooms {\n    ...RoomFields\n  }\n}\n\nmutation CreateRoom($input: CreateRoomInput!) {\n  createRoom(input: $input) {\n    ...RoomFields\n  }\n}\n\nmutation UpdateRoom($id: ID!, $input: UpdateRoomInput!) {\n  updateRoom(id: $id, input: $input) {\n    ...RoomFields\n  }\n}\n\nmutation DeleteRoom($id: ID!) {\n  deleteRoom(id: $id)\n}": typeof types.RoomsDocument;
     "fragment TherapistFields on Therapist {\n  id\n  name\n  offDays\n  leaveDates\n}\n\nfragment RoomFields on Room {\n  id\n  name\n  color\n}\n\nfragment BookingFields on Booking {\n  id\n  client\n  therapistId\n  roomId\n  start\n  end\n}": typeof types.TherapistFieldsFragmentDoc;
@@ -22,7 +22,7 @@ type Documents = {
     "query Users {\n  users {\n    data {\n      ...UserFields\n    }\n    page\n    limit\n    total\n    totalPages\n  }\n}": typeof types.UsersDocument;
 };
 const documents: Documents = {
-    "mutation Register($input: RegisterInput!) {\n  register(input: $input) {\n    token\n    user {\n      ...UserFields\n    }\n  }\n}\n\nmutation Login($input: LoginInput!) {\n  login(input: $input) {\n    token\n    user {\n      ...UserFields\n    }\n  }\n}\n\nmutation Logout {\n  logout\n}\n\nquery Me {\n  me {\n    ...UserFields\n  }\n}":
+    "mutation Register($input: RegisterInput!) {\n  register(input: $input) {\n    token\n    user {\n      ...UserFields\n    }\n  }\n}\n\nmutation Login($input: LoginInput!) {\n  login(input: $input) {\n    token\n    user {\n      ...UserFields\n    }\n  }\n}\n\nmutation Logout {\n  logout\n}\n\nquery Me {\n  me {\n    ...UserFields\n  }\n}\n\nquery Session {\n  session {\n    effectivePerms\n  }\n}":
         types.RegisterDocument,
     "query Bookings($from: DateTime!, $to: DateTime!) {\n  bookings(from: $from, to: $to) {\n    ...BookingFields\n  }\n}\n\nmutation CreateBooking($input: CreateBookingInput!) {\n  createBooking(input: $input) {\n    ...BookingFields\n  }\n}\n\nmutation UpdateBooking($id: ID!, $input: UpdateBookingInput!) {\n  updateBooking(id: $id, input: $input) {\n    ...BookingFields\n  }\n}\n\nmutation DeleteBooking($id: ID!) {\n  deleteBooking(id: $id)\n}":
         types.BookingsDocument,
@@ -42,7 +42,7 @@ const documents: Documents = {
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-    source: "mutation Register($input: RegisterInput!) {\n  register(input: $input) {\n    token\n    user {\n      ...UserFields\n    }\n  }\n}\n\nmutation Login($input: LoginInput!) {\n  login(input: $input) {\n    token\n    user {\n      ...UserFields\n    }\n  }\n}\n\nmutation Logout {\n  logout\n}\n\nquery Me {\n  me {\n    ...UserFields\n  }\n}",
+    source: "mutation Register($input: RegisterInput!) {\n  register(input: $input) {\n    token\n    user {\n      ...UserFields\n    }\n  }\n}\n\nmutation Login($input: LoginInput!) {\n  login(input: $input) {\n    token\n    user {\n      ...UserFields\n    }\n  }\n}\n\nmutation Logout {\n  logout\n}\n\nquery Me {\n  me {\n    ...UserFields\n  }\n}\n\nquery Session {\n  session {\n    effectivePerms\n  }\n}",
 ): typeof import("./graphql").RegisterDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
