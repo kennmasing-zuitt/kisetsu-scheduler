@@ -1,7 +1,7 @@
 "use client";
 
 import { formatPeso } from "@/mods/schedule/lib/pricing";
-import { bucketLabel, bucketTitle, showAxisLabel } from "@/mods/reports/lib/period";
+import { bucketLabel, bucketTitle, bucketUnit, showAxisLabel } from "@/mods/reports/lib/period";
 import type { SalesReport } from "@/mods/reports/types";
 
 const compactPeso = new Intl.NumberFormat("en-PH", {
@@ -19,7 +19,7 @@ function niceCeil(x: number): number {
 }
 
 /**
- * Revenue per day (weekly, monthly) or per month (annual) as a single-series bar chart.
+ * Revenue per hour (daily), day (weekly, monthly) or month (annual) as a single-series bar chart.
  * One hue, thin bars rounded at the top, recessive grid; hover or focus a bar for its numbers.
  * The tables below the chart carry the same data as text.
  */
@@ -31,9 +31,7 @@ export default function SalesChart({ report }: { report: SalesReport }) {
 
     return (
         <figure className="card chart">
-            <figcaption className="chart__title">
-                Revenue by {period === "annual" ? "month" : "day"}
-            </figcaption>
+            <figcaption className="chart__title">Revenue by {bucketUnit(period)}</figcaption>
             <div className="chart__plot">
                 <div className="chart__area">
                     {ticks.map((t) => (

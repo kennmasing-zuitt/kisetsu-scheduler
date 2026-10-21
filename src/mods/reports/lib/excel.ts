@@ -1,5 +1,5 @@
 import type { Cell, Fill, Row, Workbook, Worksheet } from "exceljs";
-import { rangeLabel } from "@/mods/reports/lib/period";
+import { bucketTitle, rangeLabel } from "@/mods/reports/lib/period";
 import type { SalesReport } from "@/mods/reports/types";
 
 /**
@@ -7,7 +7,7 @@ import type { SalesReport } from "@/mods/reports/types";
  * already on screen. ExcelJS (~1 MB) is loaded only when someone exports.
  *
  * Sheets: Summary · By therapist (therapist × service counts) · By service & price ·
- * By day / By month · Unpriced (when there are any). Totals are live Excel formulas, so the
+ * By hour / By day / By month · Unpriced (when there are any). Totals are live Excel formulas, so the
  * sheets stay correct if someone edits a number.
  */
 
@@ -203,22 +203,33 @@ function serviceSheet(wb: Workbook, report: SalesReport) {
 }
 
 function seriesSheet(wb: Workbook, report: SalesReport) {
-    const annual = report.period === "annual";
-    const ws = wb.addWorksheet(annual ? "By month" : "By day", {
-        views: [{ state: "frozen", ySplit: 1 }],
-    });
+    const { period } = report;
+    const ws = wb.addWorksheet(
+        period === "daily" ? "By hour" : period === "annual" ? "By month" : "By day",
+        { views: [{ state: "frozen", ySplit: 1 }] },
+    );
     ws.columns = [{ width: 22 }, { width: 12 }, { width: 16 }];
-    styleHeader(ws, ws.addRow([annual ? "Month" : "Date", "Services", "Revenue"]), 2);
+    const first = period === "daily" ? "Hour" : period === "annual" ? "Month" : "Date";
+    styleHeader(ws, ws.addRow([first, "Services", "Revenue"]), 2);
     for (const b of report.series) {
-        const row = ws.addRow([excelDate(annual ? `${b.key}-01` : b.key), b.bookings, b.revenue]);
-        row.getCell(1).numFmt = annual ? "mmmm yyyy" : "ddd, mmm d, yyyy";
+        // Hours as text ("3 PM – 4 PM"); days and months as real Excel dates
+        const label =
+            period === "daily"
+                ? bucketTitle(b.key, period)
+                : excelDate(period === "annual" ? `${b.key}-01` : b.key);
+        const row = ws.addRow([label, b.bookings, b.revenue]);
+        if (period !== "daily")
+            row.getCell(1).numFmt = period === "annual" ? "mmmm yyyy" : "ddd, mmm d, yyyy";
         row.getCell(2).numFmt = COUNT;
         row.getCell(3).numFmt = PESO;
     }
     const end = ws.rowCount;
     const total = ws.addRow(["Total"]);
-    formula(total.getCell(2), `SUM(B2:B${end})`, report.totals.bookings);
-    formula(total.getCell(3), `SUM(C2:C${end})`, report.totals.revenue);
+    // Daily totals include bookings outside opening hours, which have no hour row
+    const inChart = report.series.reduce((sum, b) => sum + b.bookings, 0);
+    const chartRevenue = report.series.reduce((sum, b) => sum + b.revenue, 0);
+    formula(total.getCell(2), `SUM(B2:B${end})`, inChart);
+    formula(total.getCell(3), `SUM(C2:C${end})`, chartRevenue);
     total.getCell(3).numFmt = PESO;
     styleTotal(total);
 }
