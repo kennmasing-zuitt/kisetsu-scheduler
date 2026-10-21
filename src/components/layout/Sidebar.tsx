@@ -41,6 +41,11 @@ const navItems = [
         icon: icon("M4 5h16v15H4zM4 10h16M8 3v4M16 3v4"),
     },
     {
+        href: "/clients",
+        label: "Clients",
+        icon: icon("M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"),
+    },
+    {
         href: "/reports",
         label: "Reports",
         icon: icon("M4 20V10M10 20V4M16 20v-7M22 20H2"),

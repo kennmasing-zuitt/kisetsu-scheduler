@@ -1,0 +1,48 @@
+fragment ClientFields on Client {
+    id
+    mobile
+    firstName
+    lastName
+    fullName
+    notes
+    createdAt
+    stats {
+        visits
+        upcoming
+        firstVisit
+        lastVisit
+        requested
+        favouriteTherapistId
+        favouriteTherapistName
+    }
+}
+
+query Clients($search: String, $page: Int, $limit: Int) {
+    clients(search: $search, page: $page, limit: $limit) {
+        data {
+            ...ClientFields
+        }
+        page
+        limit
+        total
+        totalPages
+    }
+}
+
+query ClientByMobile($mobile: String!) {
+    clientByMobile(mobile: $mobile) {
+        ...ClientFields
+    }
+}
+
+query ClientBookings($clientId: ID!, $limit: Int) {
+    clientBookings(clientId: $clientId, limit: $limit) {
+        ...BookingFields
+    }
+}
+
+mutation UpdateClient($id: ID!, $input: UpdateClientInput!) {
+    updateClient(id: $id, input: $input) {
+        ...ClientFields
+    }
+}

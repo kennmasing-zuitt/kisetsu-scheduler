@@ -22,7 +22,9 @@ export default function ServiceSalesTable({ report }: { report: SalesReport }) {
                                 <th className="num">Length</th>
                                 <th className="num">Price</th>
                                 <th className="num">Services</th>
-                                <th className="num">Revenue</th>
+                                <th className="num">Gross</th>
+                                <th className="num">Discounts</th>
+                                <th className="num">Net</th>
                             </tr>
                         </thead>
                         {sold.map((s) => (
@@ -38,6 +40,10 @@ export default function ServiceSalesTable({ report }: { report: SalesReport }) {
                                         <td className="num">{l.durationMin} min</td>
                                         <td className="num">{formatPeso(l.unitPrice)}</td>
                                         <td className="num">{l.bookings}</td>
+                                        <td className="num">{formatPeso(l.grossRevenue)}</td>
+                                        <td className={l.discounts ? "num" : "num muted"}>
+                                            {l.discounts ? `−${formatPeso(l.discounts)}` : "—"}
+                                        </td>
                                         <td className="num">{formatPeso(l.revenue)}</td>
                                     </tr>
                                 ))}
@@ -48,13 +54,19 @@ export default function ServiceSalesTable({ report }: { report: SalesReport }) {
                                             no price
                                         </td>
                                         <td className="num">{s.unpriced}</td>
-                                        <td className="num muted">—</td>
+                                        <td className="num muted" colSpan={3}>
+                                            —
+                                        </td>
                                     </tr>
                                 )}
                                 {s.lines.length + (s.unpriced ? 1 : 0) > 1 && (
                                     <tr className="subtotal">
                                         <td colSpan={3}>{s.serviceName} total</td>
                                         <td className="num">{s.bookings}</td>
+                                        <td className="num">{formatPeso(s.grossRevenue)}</td>
+                                        <td className="num">
+                                            {s.discounts ? `−${formatPeso(s.discounts)}` : "—"}
+                                        </td>
                                         <td className="num">{formatPeso(s.revenue)}</td>
                                     </tr>
                                 )}

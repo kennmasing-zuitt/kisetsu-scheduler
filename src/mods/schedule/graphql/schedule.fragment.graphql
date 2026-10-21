@@ -15,11 +15,30 @@ fragment RoomFields on Room {
 fragment BookingFields on Booking {
     id
     client
+    clientId
+    clientMobile
+    isRequested
+    promoId
+    promoCode
     therapistId
     roomId
     serviceId
     start
     end
+}
+
+fragment PromoFields on Promo {
+    id
+    code
+    description
+    discountType
+    value
+    validFrom
+    validTo
+    serviceIds
+    isActive
+    timesUsed
+    isLocked
 }
 
 fragment ServicePriceFields on ServicePrice {

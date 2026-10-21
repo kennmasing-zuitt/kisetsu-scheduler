@@ -3,7 +3,8 @@ import type { SalesReport } from "@/mods/reports/types";
 
 /**
  * Services rendered by each therapist: one row per therapist, one column per service
- * (count of bookings), then the total and the revenue. Hover a count for its revenue.
+ * (count of bookings), then the total, how many were requested by name (and the share), and
+ * the net revenue. Hover a count for its revenue, or a revenue for its gross and discounts.
  */
 export default function TherapistServiceTable({ report }: { report: SalesReport }) {
     const { therapists, services, totals } = report;
@@ -27,6 +28,12 @@ export default function TherapistServiceTable({ report }: { report: SalesReport 
                             ))}
                             {noServiceTotal > 0 && <th className="num">No service</th>}
                             <th className="num">Total</th>
+                            <th
+                                className="num"
+                                title="Bookings where the client asked for this therapist by name"
+                            >
+                                Requested
+                            </th>
                             <th className="num">Revenue</th>
                         </tr>
                     </thead>
@@ -56,7 +63,21 @@ export default function TherapistServiceTable({ report }: { report: SalesReport 
                                         </td>
                                     )}
                                     <td className="num strong">{t.bookings}</td>
-                                    <td className="num">{formatPeso(t.revenue)}</td>
+                                    <td className={t.requested ? "num" : "num muted"}>
+                                        {t.requested
+                                            ? `${t.requested} (${Math.round(t.requestRate * 100)}%)`
+                                            : "—"}
+                                    </td>
+                                    <td
+                                        className="num"
+                                        title={
+                                            t.discounts
+                                                ? `${formatPeso(t.grossRevenue)} − ${formatPeso(t.discounts)} discounts`
+                                                : undefined
+                                        }
+                                    >
+                                        {formatPeso(t.revenue)}
+                                    </td>
                                 </tr>
                             );
                         })}
@@ -71,6 +92,11 @@ export default function TherapistServiceTable({ report }: { report: SalesReport 
                             ))}
                             {noServiceTotal > 0 && <td className="num strong">{noServiceTotal}</td>}
                             <td className="num strong">{totals.bookings}</td>
+                            <td className="num strong">
+                                {totals.requested
+                                    ? `${totals.requested} (${Math.round((totals.requested / totals.bookings) * 100)}%)`
+                                    : "—"}
+                            </td>
                             <td className="num strong">{formatPeso(totals.revenue)}</td>
                         </tr>
                     </tfoot>

@@ -4,10 +4,12 @@ import SalesChart from "./SalesChart";
 import ServiceSalesTable from "./ServiceSalesTable";
 import TherapistServiceTable from "./TherapistServiceTable";
 import UnpricedBookings from "./UnpricedBookings";
+import PromoUsage from "./PromoUsage";
+import TopClients from "./TopClients";
 
 /** Headline numbers, the chart, and the tables of one sales report. */
 export default function SalesReportView({ report }: { report: SalesReport }) {
-    const { totals } = report;
+    const { totals, clients } = report;
     const hours = totals.minutes / 60;
     const average =
         totals.bookings - totals.unpriced > 0
@@ -20,10 +22,25 @@ export default function SalesReportView({ report }: { report: SalesReport }) {
                 <div className="card stat">
                     <dt>Revenue</dt>
                     <dd>{formatPeso(totals.revenue)}</dd>
+                    {totals.discounts > 0 && (
+                        <dd className="stat__sub">
+                            {formatPeso(totals.grossRevenue)} − {formatPeso(totals.discounts)}{" "}
+                            discounts
+                        </dd>
+                    )}
                 </div>
                 <div className="card stat">
                     <dt>Services rendered</dt>
                     <dd>{totals.bookings}</dd>
+                </div>
+                <div className="card stat">
+                    <dt>Clients</dt>
+                    <dd>{clients.uniqueClients}</dd>
+                    {clients.uniqueClients > 0 && (
+                        <dd className="stat__sub">
+                            {clients.newClients} new · {clients.returningClients} returning
+                        </dd>
+                    )}
                 </div>
                 <div className="card stat">
                     <dt>Hours booked</dt>
@@ -46,6 +63,8 @@ export default function SalesReportView({ report }: { report: SalesReport }) {
             <SalesChart report={report} />
             <TherapistServiceTable report={report} />
             <ServiceSalesTable report={report} />
+            <PromoUsage report={report} />
+            <TopClients report={report} />
             <UnpricedBookings report={report} />
         </div>
     );
