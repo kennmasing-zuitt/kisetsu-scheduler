@@ -73,8 +73,8 @@ export type RegisterInput = {
     password: string;
 };
 
-/** weekly = Monday to Sunday; monthly; annual. Dates in SCHEDULE_TIMEZONE */
-export type ReportPeriod = "annual" | "monthly" | "weekly";
+/** daily (charted per hour); weekly = Monday to Sunday; monthly; annual. Dates in SCHEDULE_TIMEZONE */
+export type ReportPeriod = "annual" | "daily" | "monthly" | "weekly";
 
 export type ServicePriceInput = {
     amount: number;

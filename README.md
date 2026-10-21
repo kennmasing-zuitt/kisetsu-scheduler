@@ -234,12 +234,12 @@ whenever a report runs.
 
 ### Reports
 
-**Reports** (`/reports`, needs `readReports`) shows a weekly (Mon–Sun), monthly or annual sales
-report: revenue, services rendered per therapist and per service, the prices that applied, a
+**Reports** (`/reports`, needs `readReports`) shows a daily, weekly (Mon–Sun), monthly or annual
+sales report: revenue, services rendered per therapist and per service, the prices that applied, a
 revenue chart, and any bookings that couldn't be priced. Only bookings that have ended count,
 unless **Include upcoming bookings** is ticked. **Download Excel** saves an `.xlsx` workbook built
 in the browser with [ExcelJS](https://github.com/exceljs/exceljs) (loaded only when you export):
-Summary, By therapist, By service & price, By day / By month and Unpriced sheets, with styled
+Summary, By therapist, By service & price, By hour / By day / By month and Unpriced sheets, with styled
 headers, frozen panes, filters, ₱ formats and live `SUM` formulas for the totals. **Print**
 prints the page without the app chrome.
 

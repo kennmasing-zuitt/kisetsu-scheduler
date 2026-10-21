@@ -460,7 +460,11 @@ function mockSalesReport(variables: Record<string, unknown>): SalesReport {
     const d = new Date(`${variables.date as string}T00:00:00`);
     let from: Date;
     let to: Date;
-    if (period === "weekly") {
+    if (period === "daily") {
+        from = new Date(d);
+        to = new Date(d);
+        to.setDate(d.getDate() + 1);
+    } else if (period === "weekly") {
         from = new Date(d);
         from.setDate(d.getDate() - ((d.getDay() + 6) % 7));
         to = new Date(from);
@@ -472,14 +476,25 @@ function mockSalesReport(variables: Record<string, unknown>): SalesReport {
         from = new Date(d.getFullYear(), 0, 1);
         to = new Date(d.getFullYear() + 1, 0, 1);
     }
+    const hourKey = (date: Date, h = date.getHours()) =>
+        `${toDateKey(date)}T${String(h).padStart(2, "0")}`;
     const bucketOf = (date: Date) =>
-        period === "annual" ? toDateKey(date).slice(0, 7) : toDateKey(date);
+        period === "daily"
+            ? hourKey(date)
+            : period === "annual"
+              ? toDateKey(date).slice(0, 7)
+              : toDateKey(date);
     const keys: string[] = [];
-    for (const c = new Date(from); c < to;) {
-        const key = bucketOf(c);
-        if (!keys.includes(key)) keys.push(key);
-        if (period === "annual") c.setMonth(c.getMonth() + 1);
-        else c.setDate(c.getDate() + 1);
+    if (period === "daily") {
+        // One bucket per opening hour, 10:00 to 21:00
+        for (let h = 10; h < 22; h++) keys.push(hourKey(from, h));
+    } else {
+        for (const c = new Date(from); c < to;) {
+            const key = bucketOf(c);
+            if (!keys.includes(key)) keys.push(key);
+            if (period === "annual") c.setMonth(c.getMonth() + 1);
+            else c.setDate(c.getDate() + 1);
+        }
     }
     const series = keys.map((key) => ({ key, bookings: 0, revenue: 0 }));
     const rows = therapists.map((t) => ({
