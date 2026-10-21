@@ -1307,3 +1307,128 @@ code {
     justify-content: space-between;
     gap: 12px;
 }
+
+/* ---------- Two-factor sign-in, texts, online bookings ---------- */
+.stack {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.row-between {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+.row-between h2 {
+    margin: 0 0 4px;
+    font-size: 1.1rem;
+}
+.row-actions--start {
+    justify-content: flex-start;
+}
+.chip--on {
+    padding-right: 10px;
+    border-color: transparent;
+    background: #e7f6ec;
+    color: #146c2e;
+}
+.chip--warn {
+    padding-right: 10px;
+    border-color: transparent;
+    background: var(--danger-bg);
+    color: var(--danger-text);
+}
+@media (prefers-color-scheme: dark) {
+    .chip--on {
+        background: #133821;
+        color: #8fe0a8;
+    }
+}
+.link-button {
+    border: 0;
+    padding: 0;
+    background: none;
+    color: var(--primary);
+    font: inherit;
+    cursor: pointer;
+}
+.link-button:hover {
+    text-decoration: underline;
+}
+.steps {
+    margin: 0;
+    padding-left: 20px;
+    display: grid;
+    gap: 6px;
+}
+.recovery-codes {
+    margin: 0;
+    padding: 12px 12px 12px 36px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 24px;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+}
+.recovery-codes code {
+    font-size: 0.95rem;
+    letter-spacing: 0.04em;
+}
+.totp-qr {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+.totp-qr img {
+    border-radius: 8px;
+    background: #fff;
+    padding: 6px;
+    border: 1px solid var(--border);
+}
+.totp-qr > div {
+    flex: 1 1 180px;
+    display: grid;
+    gap: 6px;
+}
+.totp-secret {
+    display: block;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 0.85rem;
+    word-break: break-all;
+    user-select: all;
+}
+.client-app {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+.conflict-list {
+    margin: 0;
+    padding-left: 18px;
+    display: grid;
+    gap: 4px;
+    font-size: 0.9rem;
+}
+.check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+}
+.table td.sms-message {
+    white-space: normal;
+    min-width: 240px;
+    max-width: 460px;
+}

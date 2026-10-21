@@ -32,6 +32,12 @@ export default function SalesReportView({ report }: { report: SalesReport }) {
                 <div className="card stat">
                     <dt>Services rendered</dt>
                     <dd>{totals.bookings}</dd>
+                    {totals.online > 0 && (
+                        <dd className="stat__sub">
+                            {totals.online} booked online (
+                            {Math.round((totals.online / totals.bookings) * 100)}%)
+                        </dd>
+                    )}
                 </div>
                 <div className="card stat">
                     <dt>Clients</dt>
@@ -50,6 +56,16 @@ export default function SalesReportView({ report }: { report: SalesReport }) {
                     <dt>Average per service</dt>
                     <dd>{formatPeso(Math.round(average * 100) / 100)}</dd>
                 </div>
+                {report.cancellations.total > 0 && (
+                    <div className="card stat">
+                        <dt>Cancelled</dt>
+                        <dd>{report.cancellations.total}</dd>
+                        <dd className="stat__sub">
+                            {report.cancellations.byStaff} by staff ·{" "}
+                            {report.cancellations.therapistUnavailable} therapist unavailable
+                        </dd>
+                    </div>
+                )}
                 {totals.unpriced > 0 && (
                     <div className="card stat stat--warn">
                         <dt>Without a price</dt>

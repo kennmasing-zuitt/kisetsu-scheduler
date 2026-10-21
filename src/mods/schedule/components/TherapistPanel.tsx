@@ -1,11 +1,16 @@
 "use client";
 
 import { useId, useState } from "react";
-import { useUpdateTherapistMutation } from "@/mods/schedule/scheduleApi";
+import Dialog from "@/components/ui/Dialog";
+import {
+    useLazyGetTherapistConflictsQuery,
+    useUpdateTherapistMutation,
+} from "@/mods/schedule/scheduleApi";
+import ConflictList from "./ConflictList";
 import { useScheduleData } from "@/mods/schedule/lib/useScheduleData";
 import type { GraphqlError } from "@/lib/graphqlBaseQuery";
 import { WEEKDAY_LABELS, isTherapistWorking, toDateKey } from "@/mods/schedule/lib/availability";
-import type { Therapist, Weekday } from "@/mods/schedule/types";
+import type { Booking, Therapist, UpdateTherapistInput, Weekday } from "@/mods/schedule/types";
 import { useIsMobile } from "@/lib/useMediaQuery";
 
 /**
@@ -17,6 +22,13 @@ import { useIsMobile } from "@/lib/useMediaQuery";
 export default function TherapistPanel({ date }: { date: Date }) {
     const { therapists, rooms } = useScheduleData(null);
     const [updateTherapist, { error }] = useUpdateTherapistMutation();
+    const [checkConflicts] = useLazyGetTherapistConflictsQuery();
+    // A change that would cancel bookings waits here for confirmation
+    const [pending, setPending] = useState<{
+        therapist: Therapist;
+        input: UpdateTherapistInput;
+        conflicts: Booking[];
+    } | null>(null);
     const dateKey = toDateKey(date);
     const dateLabel = date.toLocaleDateString(undefined, {
         weekday: "short",
@@ -30,18 +42,34 @@ export default function TherapistPanel({ date }: { date: Date }) {
     const bodyId = useId();
     const offToday = therapists.filter((t) => !isTherapistWorking(t, date)).length;
 
+    /** Saves straight away, unless it would cancel bookings: then asks first. */
+    async function change(t: Therapist, input: UpdateTherapistInput) {
+        let conflicts: Booking[] = [];
+        try {
+            conflicts = await checkConflicts({
+                id: t.id,
+                offDays: input.offDays ?? null,
+                leaveDates: input.leaveDates ?? null,
+            }).unwrap();
+        } catch {
+            /* couldn't check: the save itself will report problems */
+        }
+        if (conflicts.length) setPending({ therapist: t, input, conflicts });
+        else updateTherapist({ id: t.id, input });
+    }
+
     function toggleOffDay(t: Therapist, weekday: Weekday) {
         const offDays = t.offDays.includes(weekday)
             ? t.offDays.filter((d) => d !== weekday)
             : [...t.offDays, weekday].sort((a, b) => a - b);
-        updateTherapist({ id: t.id, input: { offDays } });
+        change(t, { offDays });
     }
 
     function toggleLeave(t: Therapist) {
         const leaveDates = t.leaveDates.includes(dateKey)
             ? t.leaveDates.filter((d) => d !== dateKey)
             : [...t.leaveDates, dateKey].sort();
-        updateTherapist({ id: t.id, input: { leaveDates } });
+        change(t, { leaveDates });
     }
 
     return (
@@ -128,6 +156,46 @@ export default function TherapistPanel({ date }: { date: Date }) {
                         );
                     })}
                 </ul>
+
+                <Dialog
+                    open={pending !== null}
+                    onClose={() => setPending(null)}
+                    labelledBy="conflicts-title"
+                >
+                    {pending && (
+                        <div className="dialog__form">
+                            <header className="dialog__header">
+                                <h2 id="conflicts-title">
+                                    {pending.therapist.name} has bookings then
+                                </h2>
+                            </header>
+                            <ConflictList bookings={pending.conflicts} />
+                            <footer className="dialog__footer">
+                                <span className="dialog__spacer" />
+                                <button
+                                    type="button"
+                                    className="btn btn--ghost"
+                                    onClick={() => setPending(null)}
+                                >
+                                    Keep as is
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn btn--danger"
+                                    onClick={() => {
+                                        updateTherapist({
+                                            id: pending.therapist.id,
+                                            input: pending.input,
+                                        });
+                                        setPending(null);
+                                    }}
+                                >
+                                    Cancel {pending.conflicts.length} and text clients
+                                </button>
+                            </footer>
+                        </div>
+                    )}
+                </Dialog>
 
                 <h2 className="roster__rooms-title">Rooms</h2>
                 <ul className="legend">

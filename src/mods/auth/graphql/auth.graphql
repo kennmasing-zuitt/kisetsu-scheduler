@@ -13,7 +13,45 @@ mutation Login($input: LoginInput!) {
         user {
             ...UserFields
         }
+        twoFactorRequired
+        twoFactorSetupRequired
+        challengeToken
     }
+}
+
+mutation LoginTwoFactor($challengeToken: String!, $code: String!) {
+    loginTwoFactor(challengeToken: $challengeToken, code: $code) {
+        token
+        user {
+            ...UserFields
+        }
+    }
+}
+
+mutation SetupTwoFactor($challengeToken: String) {
+    setupTwoFactor(challengeToken: $challengeToken) {
+        secret
+        otpauthUrl
+        qrDataUrl
+    }
+}
+
+mutation ConfirmTwoFactor($code: String!, $challengeToken: String) {
+    confirmTwoFactor(code: $code, challengeToken: $challengeToken) {
+        token
+        recoveryCodes
+        user {
+            ...UserFields
+        }
+    }
+}
+
+mutation DisableTwoFactor($password: String!, $code: String!) {
+    disableTwoFactor(password: $password, code: $code)
+}
+
+mutation RegenerateRecoveryCodes($code: String!) {
+    regenerateRecoveryCodes(code: $code)
 }
 
 mutation Logout {
@@ -29,5 +67,6 @@ query Me {
 query Session {
     session {
         effectivePerms
+        twoFactorRequired
     }
 }

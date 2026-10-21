@@ -57,7 +57,7 @@ Files: `Dockerfile` (multi-stage, Next.js standalone output, non-root), `docker-
    `docker network create web` (skip if it exists).
 2. **Set the build-time values** in a `.env` next to `docker-compose.yaml`:
     ```env
-    NEXT_PUBLIC_GRAPHQL_URL=https://scheduling-api.masings.com/graphql
+    NEXT_PUBLIC_GRAPHQL_URL=https://scheduling-api.kisetsuspa.com/graphql
     NEXT_PUBLIC_MOCK_API=false
     NEXT_PUBLIC_FULLCALENDAR_LICENSE_KEY=your-key
     ```
@@ -65,10 +65,10 @@ Files: `Dockerfile` (multi-stage, Next.js standalone output, non-root), `docker-
     changing them run `docker compose up -d --build`, not just a restart.
 3. **Build and start:** `docker compose up -d --build`
 4. **Proxy:** copy `nginx.conf` into the proxy's `conf.d/` as `scheduling.conf`
-   (it serves `scheduling.masings.com` over HTTPS with the shared `masings-apps`
-   certificate), then `docker exec <nginx-proxy> nginx -t && docker exec <nginx-proxy> nginx -s reload`.
-   The domain needs a DNS A record pointing at the Droplet, and the certificate must
-   include `scheduling.masings.com`.
+   (it serves `scheduling.kisetsuspa.com` over HTTPS), then
+   `docker exec <nginx-proxy> nginx -t && docker exec <nginx-proxy> nginx -s reload`.
+   DNS (Namecheap) and the certificate for all the kisetsuspa.com names are covered in
+   kisetsu-booking-client's `deploy/README.md`.
 
 The proxy reaches the app by its network alias `nextjs-redux-boilerplate-client:3000`
 (every project's service is named `app`, so the alias keeps them apart). With
@@ -96,6 +96,15 @@ sequenceDiagram
 - `(protected)/layout.tsx` wraps pages in `AuthGuard` (redirects guests to `/login?next=…`
   and refreshes the user with the `me` query).
 - `(auth)/layout.tsx` wraps login/register in `GuestGuard` (signed-in users go home).
+- **Two-factor sign-in:** `login` returns either `{ token, user }` or a `challengeToken` with
+  `twoFactorRequired` (the form asks for the 6-digit code, or a recovery code, and calls
+  `loginTwoFactor`) or `twoFactorSetupRequired` (admin roles that haven't set it up: the form
+  shows the QR code, checks a first code and the recovery codes, then signs in). The QR, code
+  and recovery-code steps are `mods/auth/components/TwoFactorSetup.tsx` and `RecoveryCodes.tsx`,
+  shared with **Security** (`/security`): turn it on or off (off isn't offered when the role
+  requires it) and make new recovery codes. **Users** shows who has it on and, with
+  `resetTwoFactor`, a **Reset** for a lost phone. In the mock API the admin has it on and any
+  6-digit code works.
 - `/logout` calls the `logout` mutation (so the server can revoke a refresh token/cookie),
   then clears Redux state and the RTK Query cache.
 
@@ -242,6 +251,20 @@ services, and **Archive / Activate** at any time. Once a promo has been used its
 services are locked (so past reports stay right); edit the period or description, or use
 **Duplicate** to start a new code with different terms. Unused promos can be deleted.
 
+### Cancelling, online bookings and texts
+
+- **Cancel booking** keeps the booking (status `cancelled`) and frees the slot; a checkbox texts
+  the client with the link to book again. Cancelled bookings leave the calendar and show as
+  "Cancelled" in the client's history.
+- **Days off and leave:** before saving a change (roster toggles or the therapist dialog) the app
+  asks the server which upcoming bookings it would cancel (`therapistConflicts`) and lists them.
+  Confirming cancels them on the server and texts each client to rebook.
+- **Online bookings** (made by clients on kisetsuspa.com/book) show 📱 on the calendar and
+  "Booked online" in the dialog. The Client dialog shows whether the client set up the booking
+  app, with **Reset (lost phone)**.
+- **Text messages** on Manage (`readSmsLogs`) lists texts, failed ones first, so the front desk can
+  call clients whose text didn't arrive.
+
 ### Services and prices
 
 Every booking has a **service** (Fuyu, Natsu, Haru, Shiki, Aki). The booking dialog only offers
@@ -258,7 +281,9 @@ whenever a report runs.
 sales report: revenue, services rendered per therapist and per service, the prices that applied, a
 revenue chart, and any bookings that couldn't be priced. Revenue is net of promo discounts (the
 tile and tables show gross and discounts too); therapists show how many services were requested by
-name; **Promo codes used** and **Clients** (new vs returning, top clients) follow. Only bookings that have ended count,
+name; **Promo codes used** and **Clients** (new vs returning, top clients) follow. Services
+rendered show how many were booked online, and a **Cancelled** tile counts cancellations (by staff
+or because the therapist became unavailable). Only bookings that have ended count,
 unless **Include upcoming bookings** is ticked. **Download Excel** saves an `.xlsx` workbook built
 in the browser with [ExcelJS](https://github.com/exceljs/exceljs) (loaded only when you export):
 Summary, By therapist, By service & price, By hour / By day / By month, Promos, Top clients and Unpriced sheets, with styled

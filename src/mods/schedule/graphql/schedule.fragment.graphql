@@ -25,6 +25,8 @@ fragment BookingFields on Booking {
     serviceId
     start
     end
+    status
+    source
 }
 
 fragment PromoFields on Promo {

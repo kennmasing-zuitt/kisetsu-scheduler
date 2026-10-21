@@ -2,7 +2,11 @@
 
 import { useState, type FormEvent } from "react";
 import Dialog from "@/components/ui/Dialog";
-import { useGetClientBookingsQuery, useUpdateClientMutation } from "@/mods/clients/clientsApi";
+import {
+    useGetClientBookingsQuery,
+    useResetClientAppMutation,
+    useUpdateClientMutation,
+} from "@/mods/clients/clientsApi";
 import { MOBILE_HINT, formatMobile, normalizeMobile } from "@/mods/clients/lib/mobile";
 import { useScheduleData } from "@/mods/schedule/lib/useScheduleData";
 import type { Client } from "@/mods/clients/types";
@@ -48,6 +52,10 @@ function ClientForm({
     const [mobile, setMobile] = useState(formatMobile(client.mobile));
     const [notes, setNotes] = useState(client.notes);
     const [updateClient, { isLoading }] = useUpdateClientMutation();
+    const [resetApp, resetState] = useResetClientAppMutation();
+    // The dialog shows the client as opened; reflect a reset straight away
+    const [appEnabledAt, setAppEnabledAt] = useState(client.appEnabledAt ?? null);
+    const [confirmReset, setConfirmReset] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const { data: bookings = [], isLoading: loadingBookings } = useGetClientBookingsQuery(
@@ -155,6 +163,51 @@ function ClientForm({
                 />
             </label>
 
+            <div className="client-app">
+                <span>
+                    <strong>Online booking app: </strong>
+                    {appEnabledAt
+                        ? `set up ${new Date(appEnabledAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`
+                        : "not set up (the client can set it up at kisetsuspa.com/book)"}
+                </span>
+                {canEdit && appEnabledAt && !confirmReset && (
+                    <button
+                        type="button"
+                        className="btn btn--sm btn--ghost"
+                        onClick={() => setConfirmReset(true)}
+                    >
+                        Reset (lost phone)
+                    </button>
+                )}
+                {canEdit && appEnabledAt && confirmReset && (
+                    <span className="row-actions">
+                        <button
+                            type="button"
+                            className="btn btn--sm btn--ghost"
+                            onClick={() => setConfirmReset(false)}
+                        >
+                            Keep
+                        </button>
+                        <button
+                            type="button"
+                            className="btn btn--sm btn--danger"
+                            disabled={resetState.isLoading}
+                            onClick={async () => {
+                                try {
+                                    await resetApp(client.id).unwrap();
+                                    setAppEnabledAt(null);
+                                    setConfirmReset(false);
+                                } catch (err) {
+                                    setError((err as GraphqlError).message);
+                                }
+                            }}
+                        >
+                            Turn off app sign-in
+                        </button>
+                    </span>
+                )}
+            </div>
+
             <section className="field field--plain">
                 <span>Recent bookings</span>
                 {loadingBookings ? (
@@ -180,7 +233,12 @@ function ClientForm({
                                         </td>
                                         <td>{b.promoCode ?? ""}</td>
                                         <td className="muted">
-                                            {Date.parse(b.end) > now ? "Upcoming" : "Visited"}
+                                            {b.status === "cancelled"
+                                                ? "Cancelled"
+                                                : Date.parse(b.end) > now
+                                                  ? "Upcoming"
+                                                  : "Visited"}
+                                            {b.source === "client" ? " · online" : ""}
                                         </td>
                                     </tr>
                                 ))}

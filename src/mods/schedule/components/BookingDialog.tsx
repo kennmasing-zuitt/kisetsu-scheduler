@@ -141,6 +141,7 @@ function BookingForm({ draft, onDone }: { draft: BookingDraft; onDone: () => voi
         return findFreeRoom(rooms, bookings, draft.start, end)?.id ?? "";
     });
     const [confirmingCancel, setConfirmingCancel] = useState(false);
+    const [notifyClient, setNotifyClient] = useState(false);
 
     const start = useMemo(() => fromDateAndTime(date, time), [date, time]);
     const end = useMemo(
@@ -267,7 +268,7 @@ function BookingForm({ draft, onDone }: { draft: BookingDraft; onDone: () => voi
         if (!confirmingCancel) return setConfirmingCancel(true);
         setServerError(null);
         try {
-            await deleteBooking(existing.id).unwrap();
+            await deleteBooking({ id: existing.id, notifyClient }).unwrap();
             onDone();
         } catch (err) {
             setServerError((err as GraphqlError).message);
@@ -500,6 +501,21 @@ function BookingForm({ draft, onDone }: { draft: BookingDraft; onDone: () => voi
                 <p className="muted dialog__summary">
                     {formatTime(start)} – {formatTime(end)} · {formatDuration(durationMin)}
                 </p>
+            )}
+
+            {existing?.source === "client" && (
+                <p className="muted small">📱 Booked online by the client.</p>
+            )}
+
+            {existing && confirmingCancel && existing.clientMobile && (
+                <label className="check">
+                    <input
+                        type="checkbox"
+                        checked={notifyClient}
+                        onChange={(e) => setNotifyClient(e.target.checked)}
+                    />
+                    Text the client that it&apos;s cancelled (with the link to book again)
+                </label>
             )}
 
             {(problems.length > 0 || serverError) && (

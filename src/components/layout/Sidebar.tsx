@@ -55,6 +55,11 @@ const navItems = [
         label: "Manage",
         icon: icon("M4 6h16M4 12h16M4 18h10M18 16v4M16 18h4"),
     },
+    {
+        href: "/security",
+        label: "Security",
+        icon: icon("M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM9 12l2 2 4-4"),
+    },
 ];
 
 export default function Sidebar() {

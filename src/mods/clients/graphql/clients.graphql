@@ -5,6 +5,7 @@ fragment ClientFields on Client {
     lastName
     fullName
     notes
+    appEnabledAt
     createdAt
     stats {
         visits
@@ -43,6 +44,12 @@ query ClientBookings($clientId: ID!, $limit: Int) {
 
 mutation UpdateClient($id: ID!, $input: UpdateClientInput!) {
     updateClient(id: $id, input: $input) {
+        ...ClientFields
+    }
+}
+
+mutation ResetClientApp($id: ID!) {
+    resetClientApp(id: $id) {
         ...ClientFields
     }
 }

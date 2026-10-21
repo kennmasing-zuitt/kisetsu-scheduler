@@ -4,10 +4,12 @@ import { useState, type FormEvent } from "react";
 import Dialog from "@/components/ui/Dialog";
 import {
     useCreateTherapistMutation,
+    useLazyGetTherapistConflictsQuery,
     useUpdateTherapistMutation,
 } from "@/mods/schedule/scheduleApi";
+import ConflictList from "./ConflictList";
 import { WEEKDAY_LABELS, toDateKey } from "@/mods/schedule/lib/availability";
-import type { Therapist } from "@/mods/schedule/types";
+import type { Booking, Therapist } from "@/mods/schedule/types";
 import type { GraphqlError } from "@/lib/graphqlBaseQuery";
 
 const formatDate = (key: string) =>
@@ -43,7 +45,16 @@ function TherapistForm({ therapist, onDone }: { therapist?: Therapist; onDone: (
 
     const [createTherapist, createState] = useCreateTherapistMutation();
     const [updateTherapist, updateState] = useUpdateTherapistMutation();
-    const saving = createState.isLoading || updateState.isLoading;
+    const [checkConflicts, checkState] = useLazyGetTherapistConflictsQuery();
+    // Bookings the new days off / leave would cancel, shown before saving (null = not checked)
+    const [conflicts, setConflicts] = useState<Booking[] | null>(null);
+    const [checkedFor, setCheckedFor] = useState("");
+    const availabilityKey = JSON.stringify([offDays, leaveDates]);
+    if (conflicts && checkedFor !== availabilityKey) {
+        // Days off or leave changed after the check: check again on save
+        setConflicts(null);
+    }
+    const saving = createState.isLoading || updateState.isLoading || checkState.isFetching;
     const [error, setError] = useState<string | null>(null);
 
     // Past leave is kept as history but not listed
@@ -70,6 +81,18 @@ function TherapistForm({ therapist, onDone }: { therapist?: Therapist; onDone: (
         const input = { name: name.trim(), offDays, leaveDates };
         setError(null);
         try {
+            if (therapist && !conflicts) {
+                const found = await checkConflicts({
+                    id: therapist.id,
+                    offDays,
+                    leaveDates,
+                }).unwrap();
+                if (found.length) {
+                    setConflicts(found);
+                    setCheckedFor(availabilityKey);
+                    return;
+                }
+            }
             if (therapist) await updateTherapist({ id: therapist.id, input }).unwrap();
             else await createTherapist(input).unwrap();
             onDone();
@@ -172,13 +195,24 @@ function TherapistForm({ therapist, onDone }: { therapist?: Therapist; onDone: (
                 </p>
             )}
 
+            {conflicts && conflicts.length > 0 && <ConflictList bookings={conflicts} />}
+
             <footer className="dialog__footer">
                 <span className="dialog__spacer" />
                 <button type="button" className="btn btn--ghost" onClick={onDone}>
                     Cancel
                 </button>
-                <button className="btn btn--primary" disabled={!name.trim() || saving}>
-                    {saving ? "Saving…" : therapist ? "Save changes" : "Add therapist"}
+                <button
+                    className={conflicts?.length ? "btn btn--danger" : "btn btn--primary"}
+                    disabled={!name.trim() || saving}
+                >
+                    {saving
+                        ? "Saving…"
+                        : conflicts?.length
+                          ? `Save and cancel ${conflicts.length}`
+                          : therapist
+                            ? "Save changes"
+                            : "Add therapist"}
                 </button>
             </footer>
         </form>

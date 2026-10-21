@@ -16,6 +16,6 @@ mutation UpdateBooking($id: ID!, $input: UpdateBookingInput!) {
     }
 }
 
-mutation DeleteBooking($id: ID!) {
-    deleteBooking(id: $id)
+mutation DeleteBooking($id: ID!, $notifyClient: Boolean) {
+    deleteBooking(id: $id, notifyClient: $notifyClient)
 }

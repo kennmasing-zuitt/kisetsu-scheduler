@@ -5,6 +5,7 @@ import ManageTherapists from "@/mods/schedule/components/ManageTherapists";
 import ManageRooms from "@/mods/schedule/components/ManageRooms";
 import ManageServices from "@/mods/schedule/components/ManageServices";
 import ManagePromos from "@/mods/schedule/components/ManagePromos";
+import SmsLogPanel from "@/mods/sms/components/SmsLogPanel";
 
 export default function ManagePage() {
     return (
@@ -27,6 +28,7 @@ export default function ManagePage() {
             <div className="manage-grid manage-grid--full">
                 <ManageServices />
                 <ManagePromos />
+                <SmsLogPanel />
             </div>
         </>
     );

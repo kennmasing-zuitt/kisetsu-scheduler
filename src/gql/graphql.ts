@@ -5,6 +5,14 @@ type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
 export type Incremental<T> =
     T | { [P in keyof T]?: P extends " $fragmentName" | "__typename" ? T[P] : never };
 import { DocumentTypeDecoration } from "@graphql-typed-document-node/core";
+export type BookingSource =
+    /** Made by the client on the booking site */
+    | "client"
+    /** Made in the scheduling app */
+    | "staff";
+
+export type BookingStatus = "booked" | "cancelled";
+
 export type CreateBookingInput = {
     /** Required when the mobile is new */
     clientFirstName?: string | null | undefined;
@@ -81,7 +89,9 @@ export type Permission =
     | "readClients"
     | "readReports"
     | "readRoles"
+    | "readSmsLogs"
     | "readUsers"
+    | "resetTwoFactor"
     | "superAdmin"
     | "updateBooking"
     | "updateClient"
@@ -113,6 +123,10 @@ export type ServicePriceInput = {
     /** "YYYY-MM-DD"; leave out while current */
     validTo?: string | null | undefined;
 };
+
+export type SmsPurpose = "rebook" | "setupCode";
+
+export type SmsStatus = "failed" | "sending" | "sent";
 
 /** noService = booking has no service; noPrice = no price rule for its date/length */
 export type UnpricedReason = "noPrice" | "noService";
@@ -187,6 +201,7 @@ export type RegisterMutation = {
             name: string;
             email: string;
             extraPerms: Array<Permission>;
+            twoFactorEnabled: boolean;
             createdAt: string;
             role: { id: string; name: string };
         };
@@ -199,17 +214,83 @@ export type LoginMutationVariables = Exact<{
 
 export type LoginMutation = {
     login: {
+        token: string | null;
+        twoFactorRequired: boolean;
+        twoFactorSetupRequired: boolean;
+        challengeToken: string | null;
+        user: {
+            id: string;
+            name: string;
+            email: string;
+            extraPerms: Array<Permission>;
+            twoFactorEnabled: boolean;
+            createdAt: string;
+            role: { id: string; name: string };
+        } | null;
+    };
+};
+
+export type LoginTwoFactorMutationVariables = Exact<{
+    challengeToken: string;
+    code: string;
+}>;
+
+export type LoginTwoFactorMutation = {
+    loginTwoFactor: {
         token: string;
         user: {
             id: string;
             name: string;
             email: string;
             extraPerms: Array<Permission>;
+            twoFactorEnabled: boolean;
             createdAt: string;
             role: { id: string; name: string };
         };
     };
 };
+
+export type SetupTwoFactorMutationVariables = Exact<{
+    challengeToken?: string | null | undefined;
+}>;
+
+export type SetupTwoFactorMutation = {
+    setupTwoFactor: { secret: string; otpauthUrl: string; qrDataUrl: string };
+};
+
+export type ConfirmTwoFactorMutationVariables = Exact<{
+    code: string;
+    challengeToken?: string | null | undefined;
+}>;
+
+export type ConfirmTwoFactorMutation = {
+    confirmTwoFactor: {
+        token: string;
+        recoveryCodes: Array<string>;
+        user: {
+            id: string;
+            name: string;
+            email: string;
+            extraPerms: Array<Permission>;
+            twoFactorEnabled: boolean;
+            createdAt: string;
+            role: { id: string; name: string };
+        };
+    };
+};
+
+export type DisableTwoFactorMutationVariables = Exact<{
+    password: string;
+    code: string;
+}>;
+
+export type DisableTwoFactorMutation = { disableTwoFactor: boolean };
+
+export type RegenerateRecoveryCodesMutationVariables = Exact<{
+    code: string;
+}>;
+
+export type RegenerateRecoveryCodesMutation = { regenerateRecoveryCodes: Array<string> };
 
 export type LogoutMutationVariables = Exact<{ [key: string]: never }>;
 
@@ -223,6 +304,7 @@ export type MeQuery = {
         name: string;
         email: string;
         extraPerms: Array<Permission>;
+        twoFactorEnabled: boolean;
         createdAt: string;
         role: { id: string; name: string };
     };
@@ -230,7 +312,9 @@ export type MeQuery = {
 
 export type SessionQueryVariables = Exact<{ [key: string]: never }>;
 
-export type SessionQuery = { session: { effectivePerms: Array<Permission> } };
+export type SessionQuery = {
+    session: { effectivePerms: Array<Permission>; twoFactorRequired: boolean };
+};
 
 export type ClientFieldsFragment = {
     id: string;
@@ -239,6 +323,7 @@ export type ClientFieldsFragment = {
     lastName: string;
     fullName: string;
     notes: string;
+    appEnabledAt: string | null;
     createdAt: string;
     stats: {
         visits: number;
@@ -270,6 +355,7 @@ export type ClientsQuery = {
             lastName: string;
             fullName: string;
             notes: string;
+            appEnabledAt: string | null;
             createdAt: string;
             stats: {
                 visits: number;
@@ -296,6 +382,7 @@ export type ClientByMobileQuery = {
         lastName: string;
         fullName: string;
         notes: string;
+        appEnabledAt: string | null;
         createdAt: string;
         stats: {
             visits: number;
@@ -328,6 +415,8 @@ export type ClientBookingsQuery = {
         serviceId: string | null;
         start: string;
         end: string;
+        status: BookingStatus;
+        source: BookingSource;
     }>;
 };
 
@@ -344,6 +433,33 @@ export type UpdateClientMutation = {
         lastName: string;
         fullName: string;
         notes: string;
+        appEnabledAt: string | null;
+        createdAt: string;
+        stats: {
+            visits: number;
+            upcoming: number;
+            firstVisit: string | null;
+            lastVisit: string | null;
+            requested: number;
+            favouriteTherapistId: string | null;
+            favouriteTherapistName: string | null;
+        };
+    };
+};
+
+export type ResetClientAppMutationVariables = Exact<{
+    id: string | number;
+}>;
+
+export type ResetClientAppMutation = {
+    resetClientApp: {
+        id: string;
+        mobile: string;
+        firstName: string;
+        lastName: string;
+        fullName: string;
+        notes: string;
+        appEnabledAt: string | null;
         createdAt: string;
         stats: {
             visits: number;
@@ -391,7 +507,9 @@ export type SalesReportQuery = {
             revenue: number;
             unpriced: number;
             requested: number;
+            online: number;
         };
+        cancellations: { total: number; byStaff: number; therapistUnavailable: number };
         therapists: Array<{
             therapistId: string;
             therapistName: string;
@@ -488,6 +606,8 @@ export type BookingsQuery = {
         serviceId: string | null;
         start: string;
         end: string;
+        status: BookingStatus;
+        source: BookingSource;
     }>;
 };
 
@@ -509,6 +629,8 @@ export type CreateBookingMutation = {
         serviceId: string | null;
         start: string;
         end: string;
+        status: BookingStatus;
+        source: BookingSource;
     };
 };
 
@@ -531,11 +653,14 @@ export type UpdateBookingMutation = {
         serviceId: string | null;
         start: string;
         end: string;
+        status: BookingStatus;
+        source: BookingSource;
     };
 };
 
 export type DeleteBookingMutationVariables = Exact<{
     id: string | number;
+    notifyClient?: boolean | null | undefined;
 }>;
 
 export type DeleteBookingMutation = { deleteBooking: boolean };
@@ -652,6 +777,8 @@ export type BookingFieldsFragment = {
     serviceId: string | null;
     start: string;
     end: string;
+    status: BookingStatus;
+    source: BookingSource;
 };
 
 export type PromoFieldsFragment = {
@@ -806,11 +933,58 @@ export type DeleteTherapistMutationVariables = Exact<{
 
 export type DeleteTherapistMutation = { deleteTherapist: boolean };
 
+export type TherapistConflictsQueryVariables = Exact<{
+    id: string | number;
+    offDays?: Array<number> | number | null | undefined;
+    leaveDates?: Array<string> | string | null | undefined;
+}>;
+
+export type TherapistConflictsQuery = {
+    therapistConflicts: Array<{
+        id: string;
+        client: string;
+        clientId: string | null;
+        clientMobile: string | null;
+        isRequested: boolean;
+        promoId: string | null;
+        promoCode: string | null;
+        therapistId: string;
+        roomId: string;
+        serviceId: string | null;
+        start: string;
+        end: string;
+        status: BookingStatus;
+        source: BookingSource;
+    }>;
+};
+
+export type SmsLogsQueryVariables = Exact<{
+    status?: SmsStatus | null | undefined;
+    limit?: number | null | undefined;
+}>;
+
+export type SmsLogsQuery = {
+    smsLogs: Array<{
+        id: string;
+        to: string;
+        purpose: SmsPurpose;
+        message: string;
+        status: SmsStatus;
+        attempts: number;
+        error: string | null;
+        bookingId: string | null;
+        clientId: string | null;
+        createdAt: string;
+        sentAt: string | null;
+    }>;
+};
+
 export type UserFieldsFragment = {
     id: string;
     name: string;
     email: string;
     extraPerms: Array<Permission>;
+    twoFactorEnabled: boolean;
     createdAt: string;
     role: { id: string; name: string };
 };
@@ -828,11 +1002,18 @@ export type UsersQuery = {
             name: string;
             email: string;
             extraPerms: Array<Permission>;
+            twoFactorEnabled: boolean;
             createdAt: string;
             role: { id: string; name: string };
         }>;
     };
 };
+
+export type ResetUserTwoFactorMutationVariables = Exact<{
+    userId: string | number;
+}>;
+
+export type ResetUserTwoFactorMutation = { resetUserTwoFactor: boolean };
 
 export class TypedDocumentString<TResult, TVariables>
     extends String
@@ -861,6 +1042,7 @@ export const ClientFieldsFragmentDoc = new TypedDocumentString(
   lastName
   fullName
   notes
+  appEnabledAt
   createdAt
   stats {
     visits
@@ -926,6 +1108,8 @@ export const BookingFieldsFragmentDoc = new TypedDocumentString(
   serviceId
   start
   end
+  status
+  source
 }
     `,
     { fragmentName: "BookingFields" },
@@ -993,6 +1177,7 @@ export const UserFieldsFragmentDoc = new TypedDocumentString(
     name
   }
   extraPerms
+  twoFactorEnabled
   createdAt
 }
     `,
@@ -1016,11 +1201,36 @@ export const RegisterDocument = new TypedDocumentString(`
     name
   }
   extraPerms
+  twoFactorEnabled
   createdAt
 }`) as unknown as TypedDocumentString<RegisterMutation, RegisterMutationVariables>;
 export const LoginDocument = new TypedDocumentString(`
     mutation Login($input: LoginInput!) {
   login(input: $input) {
+    token
+    user {
+      ...UserFields
+    }
+    twoFactorRequired
+    twoFactorSetupRequired
+    challengeToken
+  }
+}
+    fragment UserFields on User {
+  id
+  name
+  email
+  role {
+    id
+    name
+  }
+  extraPerms
+  twoFactorEnabled
+  createdAt
+}`) as unknown as TypedDocumentString<LoginMutation, LoginMutationVariables>;
+export const LoginTwoFactorDocument = new TypedDocumentString(`
+    mutation LoginTwoFactor($challengeToken: String!, $code: String!) {
+  loginTwoFactor(challengeToken: $challengeToken, code: $code) {
     token
     user {
       ...UserFields
@@ -1036,8 +1246,56 @@ export const LoginDocument = new TypedDocumentString(`
     name
   }
   extraPerms
+  twoFactorEnabled
   createdAt
-}`) as unknown as TypedDocumentString<LoginMutation, LoginMutationVariables>;
+}`) as unknown as TypedDocumentString<LoginTwoFactorMutation, LoginTwoFactorMutationVariables>;
+export const SetupTwoFactorDocument = new TypedDocumentString(`
+    mutation SetupTwoFactor($challengeToken: String) {
+  setupTwoFactor(challengeToken: $challengeToken) {
+    secret
+    otpauthUrl
+    qrDataUrl
+  }
+}
+    `) as unknown as TypedDocumentString<SetupTwoFactorMutation, SetupTwoFactorMutationVariables>;
+export const ConfirmTwoFactorDocument = new TypedDocumentString(`
+    mutation ConfirmTwoFactor($code: String!, $challengeToken: String) {
+  confirmTwoFactor(code: $code, challengeToken: $challengeToken) {
+    token
+    recoveryCodes
+    user {
+      ...UserFields
+    }
+  }
+}
+    fragment UserFields on User {
+  id
+  name
+  email
+  role {
+    id
+    name
+  }
+  extraPerms
+  twoFactorEnabled
+  createdAt
+}`) as unknown as TypedDocumentString<ConfirmTwoFactorMutation, ConfirmTwoFactorMutationVariables>;
+export const DisableTwoFactorDocument = new TypedDocumentString(`
+    mutation DisableTwoFactor($password: String!, $code: String!) {
+  disableTwoFactor(password: $password, code: $code)
+}
+    `) as unknown as TypedDocumentString<
+    DisableTwoFactorMutation,
+    DisableTwoFactorMutationVariables
+>;
+export const RegenerateRecoveryCodesDocument = new TypedDocumentString(`
+    mutation RegenerateRecoveryCodes($code: String!) {
+  regenerateRecoveryCodes(code: $code)
+}
+    `) as unknown as TypedDocumentString<
+    RegenerateRecoveryCodesMutation,
+    RegenerateRecoveryCodesMutationVariables
+>;
 export const LogoutDocument = new TypedDocumentString(`
     mutation Logout {
   logout
@@ -1058,12 +1316,14 @@ export const MeDocument = new TypedDocumentString(`
     name
   }
   extraPerms
+  twoFactorEnabled
   createdAt
 }`) as unknown as TypedDocumentString<MeQuery, MeQueryVariables>;
 export const SessionDocument = new TypedDocumentString(`
     query Session {
   session {
     effectivePerms
+    twoFactorRequired
   }
 }
     `) as unknown as TypedDocumentString<SessionQuery, SessionQueryVariables>;
@@ -1086,6 +1346,7 @@ export const ClientsDocument = new TypedDocumentString(`
   lastName
   fullName
   notes
+  appEnabledAt
   createdAt
   stats {
     visits
@@ -1110,6 +1371,7 @@ export const ClientByMobileDocument = new TypedDocumentString(`
   lastName
   fullName
   notes
+  appEnabledAt
   createdAt
   stats {
     visits
@@ -1140,6 +1402,8 @@ export const ClientBookingsDocument = new TypedDocumentString(`
   serviceId
   start
   end
+  status
+  source
 }`) as unknown as TypedDocumentString<ClientBookingsQuery, ClientBookingsQueryVariables>;
 export const UpdateClientDocument = new TypedDocumentString(`
     mutation UpdateClient($id: ID!, $input: UpdateClientInput!) {
@@ -1154,6 +1418,7 @@ export const UpdateClientDocument = new TypedDocumentString(`
   lastName
   fullName
   notes
+  appEnabledAt
   createdAt
   stats {
     visits
@@ -1165,6 +1430,31 @@ export const UpdateClientDocument = new TypedDocumentString(`
     favouriteTherapistName
   }
 }`) as unknown as TypedDocumentString<UpdateClientMutation, UpdateClientMutationVariables>;
+export const ResetClientAppDocument = new TypedDocumentString(`
+    mutation ResetClientApp($id: ID!) {
+  resetClientApp(id: $id) {
+    ...ClientFields
+  }
+}
+    fragment ClientFields on Client {
+  id
+  mobile
+  firstName
+  lastName
+  fullName
+  notes
+  appEnabledAt
+  createdAt
+  stats {
+    visits
+    upcoming
+    firstVisit
+    lastVisit
+    requested
+    favouriteTherapistId
+    favouriteTherapistName
+  }
+}`) as unknown as TypedDocumentString<ResetClientAppMutation, ResetClientAppMutationVariables>;
 export const SalesReportDocument = new TypedDocumentString(`
     query SalesReport($period: ReportPeriod!, $date: String!, $includeUpcoming: Boolean) {
   salesReport(period: $period, date: $date, includeUpcoming: $includeUpcoming) {
@@ -1183,6 +1473,12 @@ export const SalesReportDocument = new TypedDocumentString(`
       revenue
       unpriced
       requested
+      online
+    }
+    cancellations {
+      total
+      byStaff
+      therapistUnavailable
     }
     therapists {
       therapistId
@@ -1284,6 +1580,8 @@ export const BookingsDocument = new TypedDocumentString(`
   serviceId
   start
   end
+  status
+  source
 }`) as unknown as TypedDocumentString<BookingsQuery, BookingsQueryVariables>;
 export const CreateBookingDocument = new TypedDocumentString(`
     mutation CreateBooking($input: CreateBookingInput!) {
@@ -1304,6 +1602,8 @@ export const CreateBookingDocument = new TypedDocumentString(`
   serviceId
   start
   end
+  status
+  source
 }`) as unknown as TypedDocumentString<CreateBookingMutation, CreateBookingMutationVariables>;
 export const UpdateBookingDocument = new TypedDocumentString(`
     mutation UpdateBooking($id: ID!, $input: UpdateBookingInput!) {
@@ -1324,10 +1624,12 @@ export const UpdateBookingDocument = new TypedDocumentString(`
   serviceId
   start
   end
+  status
+  source
 }`) as unknown as TypedDocumentString<UpdateBookingMutation, UpdateBookingMutationVariables>;
 export const DeleteBookingDocument = new TypedDocumentString(`
-    mutation DeleteBooking($id: ID!) {
-  deleteBooking(id: $id)
+    mutation DeleteBooking($id: ID!, $notifyClient: Boolean) {
+  deleteBooking(id: $id, notifyClient: $notifyClient)
 }
     `) as unknown as TypedDocumentString<DeleteBookingMutation, DeleteBookingMutationVariables>;
 export const PromosDocument = new TypedDocumentString(`
@@ -1545,6 +1847,45 @@ export const DeleteTherapistDocument = new TypedDocumentString(`
   deleteTherapist(id: $id)
 }
     `) as unknown as TypedDocumentString<DeleteTherapistMutation, DeleteTherapistMutationVariables>;
+export const TherapistConflictsDocument = new TypedDocumentString(`
+    query TherapistConflicts($id: ID!, $offDays: [Int!], $leaveDates: [String!]) {
+  therapistConflicts(id: $id, offDays: $offDays, leaveDates: $leaveDates) {
+    ...BookingFields
+  }
+}
+    fragment BookingFields on Booking {
+  id
+  client
+  clientId
+  clientMobile
+  isRequested
+  promoId
+  promoCode
+  therapistId
+  roomId
+  serviceId
+  start
+  end
+  status
+  source
+}`) as unknown as TypedDocumentString<TherapistConflictsQuery, TherapistConflictsQueryVariables>;
+export const SmsLogsDocument = new TypedDocumentString(`
+    query SmsLogs($status: SmsStatus, $limit: Int) {
+  smsLogs(status: $status, limit: $limit) {
+    id
+    to
+    purpose
+    message
+    status
+    attempts
+    error
+    bookingId
+    clientId
+    createdAt
+    sentAt
+  }
+}
+    `) as unknown as TypedDocumentString<SmsLogsQuery, SmsLogsQueryVariables>;
 export const UsersDocument = new TypedDocumentString(`
     query Users {
   users {
@@ -1566,5 +1907,14 @@ export const UsersDocument = new TypedDocumentString(`
     name
   }
   extraPerms
+  twoFactorEnabled
   createdAt
 }`) as unknown as TypedDocumentString<UsersQuery, UsersQueryVariables>;
+export const ResetUserTwoFactorDocument = new TypedDocumentString(`
+    mutation ResetUserTwoFactor($userId: ID!) {
+  resetUserTwoFactor(userId: $userId)
+}
+    `) as unknown as TypedDocumentString<
+    ResetUserTwoFactorMutation,
+    ResetUserTwoFactorMutationVariables
+>;

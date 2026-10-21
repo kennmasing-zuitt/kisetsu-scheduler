@@ -26,6 +26,12 @@ query SalesReport($period: ReportPeriod!, $date: String!, $includeUpcoming: Bool
             revenue
             unpriced
             requested
+            online
+        }
+        cancellations {
+            total
+            byStaff
+            therapistUnavailable
         }
         therapists {
             therapistId

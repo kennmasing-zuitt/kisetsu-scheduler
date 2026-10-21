@@ -21,6 +21,7 @@ const users: User[] = [
         email: "admin@example.com",
         role: { id: "r1", name: "ADMIN" },
         extraPerms: ["readUsers"],
+        twoFactorEnabled: true,
         createdAt: now,
     },
     {
@@ -29,6 +30,7 @@ const users: User[] = [
         email: "jane@example.com",
         role: { id: "r2", name: "USER" },
         extraPerms: [],
+        twoFactorEnabled: false,
         createdAt: now,
     },
 ];
@@ -169,6 +171,8 @@ interface MockClient {
     lastName: string;
     notes: string;
     createdAt: string;
+    /** Set up app sign-in for the booking site */
+    appEnabledAt?: string | null;
 }
 
 let clients: MockClient[] = [
@@ -179,6 +183,7 @@ let clients: MockClient[] = [
         lastName: "Cruz",
         notes: "Prefers light pressure",
         createdAt: now,
+        appEnabledAt: now,
     },
     {
         id: "c2",
@@ -267,6 +272,8 @@ const booking = (
     serviceId,
     start,
     end,
+    status: "booked",
+    source: "staff",
     ...extra,
 });
 
@@ -278,7 +285,10 @@ let bookings: Booking[] = [
         promoId: "pr1",
         promoCode: "KISETSU10",
     }),
-    booking("b3", clients[2], "ben", "room-2", "natsu", todayAt(16, 30), todayAt(17, 30)),
+    booking("b3", clients[2], "ben", "room-2", "natsu", todayAt(16, 30), todayAt(17, 30), {
+        source: "client", // booked online on kisetsuspa.com/book
+        isRequested: true,
+    }),
     booking("b4", clients[3], "carla", "room-3", "shiki", todayAt(15, 30), todayAt(17, 30), {
         isRequested: true,
     }),
@@ -322,7 +332,7 @@ for (let day = 1; day <= 40; day++) {
 /** A client as the API returns it: with full name and visit counts */
 function clientView(c: MockClient) {
     const nowMs = Date.now();
-    const mine = bookings.filter((b) => b.clientId === c.id);
+    const mine = active().filter((b) => b.clientId === c.id);
     const visits = mine.filter((b) => Date.parse(b.end) <= nowMs);
     const starts = visits.map((b) => b.start).sort();
     const byTherapist = new Map<string, number>();
@@ -331,6 +341,7 @@ function clientView(c: MockClient) {
     const favourite = [...byTherapist].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
     return {
         ...c,
+        appEnabledAt: c.appEnabledAt ?? null,
         fullName: fullName(c),
         stats: {
             visits: visits.length,
@@ -345,7 +356,7 @@ function clientView(c: MockClient) {
 }
 
 const promoView = (pr: Promo): Promo => {
-    const timesUsed = bookings.filter((b) => b.promoId === pr.id).length;
+    const timesUsed = active().filter((b) => b.promoId === pr.id).length;
     return { ...pr, timesUsed, isLocked: timesUsed > 0 };
 };
 
@@ -384,6 +395,92 @@ const promoFor = (code: unknown) => {
     return c ? promos.find((x) => x.code === c) : undefined;
 };
 
+/** Bookings that hold their slot (cancelled ones are kept, like on the server) */
+const active = () => bookings.filter((b) => b.status !== "cancelled");
+
+interface MockSms {
+    id: string;
+    to: string;
+    purpose: "setupCode" | "rebook";
+    message: string;
+    status: "sent" | "failed" | "sending";
+    attempts: number;
+    error: string | null;
+    bookingId: string | null;
+    clientId: string | null;
+    createdAt: string;
+    sentAt: string | null;
+}
+let smsLogs: MockSms[] = [
+    {
+        id: "sms-1",
+        to: "+639181234567",
+        purpose: "rebook",
+        message:
+            "Hi Maria, sorry: Ben is no longer available for your Sat, 3:00 PM booking at Kisetsu Spa, so it was cancelled. Please rebook at https://kisetsuspa.com/book.",
+        status: "failed",
+        attempts: 3,
+        error: "Semaphore status Failed",
+        bookingId: null,
+        clientId: "c2",
+        createdAt: now,
+        sentAt: null,
+    },
+];
+const textClient = (b: Booking, message: string) => {
+    if (!b.clientMobile) return;
+    smsLogs = [
+        {
+            id: `sms-${smsLogs.length + 1}`,
+            to: b.clientMobile,
+            purpose: "rebook",
+            message,
+            status: "sent",
+            attempts: 1,
+            error: null,
+            bookingId: b.id,
+            clientId: b.clientId,
+            createdAt: new Date().toISOString(),
+            sentAt: new Date().toISOString(),
+        },
+        ...smsLogs,
+    ];
+};
+// Objects handed to the app are frozen by Redux, so updates replace them instead of mutating
+const cancel = (bookingId: string) => {
+    bookings = bookings.map((x) => (x.id === bookingId ? { ...x, status: "cancelled" } : x));
+};
+const setUser = (userId: string, patch: Partial<User>) => {
+    const i = users.findIndex((u) => u.id === userId);
+    users[i] = { ...users[i], ...patch };
+    return users[i];
+};
+const firstName = (b: Booking) => b.client.split(" ")[0];
+const whenLabel = (iso: string) =>
+    new Date(iso).toLocaleString("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+    });
+/** Upcoming bookings of a therapist on days they'd be off with these lists */
+const conflictsFor = (t: Therapist, offDays: number[], leaveDates: string[]) =>
+    active().filter((b) => {
+        if (b.therapistId !== t.id || Date.parse(b.start) <= Date.now()) return false;
+        const d = new Date(b.start);
+        return offDays.includes(d.getDay()) || leaveDates.includes(toDateKey(d));
+    });
+const MOCK_QR =
+    "data:image/svg+xml," +
+    encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect width="200" height="200" fill="#fff"/><rect x="20" y="20" width="50" height="50" fill="#111"/><rect x="130" y="20" width="50" height="50" fill="#111"/><rect x="20" y="130" width="50" height="50" fill="#111"/><text x="100" y="110" text-anchor="middle" font-family="sans-serif" font-size="14">mock QR</text></svg>',
+    );
+const RECOVERY = Array.from({ length: 10 }, (_, i) => `mock-${String(1000 + i).slice(1)}a`);
+const isCode = (c: unknown) => /^\d{6}$/.test(String(c ?? "").replace(/\s/g, ""));
+const isRecovery = (c: unknown) => /^[a-z0-9]{4}-?[a-z0-9]{4}$/i.test(String(c ?? "").trim());
+const userFromChallenge = (t: unknown) => users.find((u) => `mock-challenge-${u.id}` === t);
+
 let nextId = 100;
 const newId = () => `mock-${nextId++}`;
 /** Fields that were sent (GraphQL clients may send null for "unchanged") */
@@ -408,7 +505,16 @@ export async function mockGraphql(
     const input = (variables?.input ?? {}) as Record<string, string>;
     const id = variables?.id as string | undefined;
     const op = operationName(document);
-    const isAuthOp = ["Login", "Register", "Logout", "Me", "Session"].includes(op);
+    const isAuthOp = [
+        "Login",
+        "LoginTwoFactor",
+        "SetupTwoFactor",
+        "ConfirmTwoFactor",
+        "Register",
+        "Logout",
+        "Me",
+        "Session",
+    ].includes(op);
     if (!isAuthOp && !token) {
         return { error: { message: "Not authenticated", code: "UNAUTHENTICATED" } };
     }
@@ -417,8 +523,114 @@ export async function mockGraphql(
     // overlaps (the UI checks those too, so the mock behaves close enough).
     switch (op) {
         case "Login": {
+            // Mock 2FA: the admin has it on; any 6-digit code (or a xxxx-xxxx recovery code) works
             const user = users.find((u) => u.email === input.email) ?? users[0];
-            return { data: { login: authPayload(user) } };
+            if (user.twoFactorEnabled)
+                return {
+                    data: {
+                        login: {
+                            token: null,
+                            user: null,
+                            twoFactorRequired: true,
+                            twoFactorSetupRequired: false,
+                            challengeToken: `mock-challenge-${user.id}`,
+                        },
+                    },
+                };
+            return {
+                data: {
+                    login: {
+                        ...authPayload(user),
+                        twoFactorRequired: false,
+                        twoFactorSetupRequired: false,
+                        challengeToken: null,
+                    },
+                },
+            };
+        }
+        case "LoginTwoFactor": {
+            const user = userFromChallenge(variables?.challengeToken);
+            if (!user)
+                return {
+                    error: {
+                        message: "This step expired. Please start again.",
+                        code: "TWO_FACTOR_CHALLENGE_EXPIRED",
+                    },
+                };
+            if (!isCode(variables?.code) && !isRecovery(variables?.code))
+                return {
+                    error: {
+                        message: "That code is not right. Try the newest code.",
+                        code: "INVALID_TWO_FACTOR_CODE",
+                    },
+                };
+            return { data: { loginTwoFactor: authPayload(user) } };
+        }
+        case "SetupTwoFactor":
+            return {
+                data: {
+                    setupTwoFactor: {
+                        secret: "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP",
+                        otpauthUrl: "otpauth://totp/Kisetsu%20Spa:mock?secret=JBSWY3DPEHPK3PXP",
+                        qrDataUrl: MOCK_QR,
+                    },
+                },
+            };
+        case "ConfirmTwoFactor": {
+            const user =
+                userFromChallenge(variables?.challengeToken) ??
+                users.find((u) => `mock-token-${u.id}` === token);
+            if (!user) return { error: { message: "Not authenticated", code: "UNAUTHENTICATED" } };
+            if (!isCode(variables?.code))
+                return {
+                    error: {
+                        message: "That code is not right. Try the newest code.",
+                        code: "INVALID_TWO_FACTOR_CODE",
+                    },
+                };
+            const on = setUser(user.id, { twoFactorEnabled: true });
+            return {
+                data: { confirmTwoFactor: { ...authPayload(on), recoveryCodes: RECOVERY } },
+            };
+        }
+        case "DisableTwoFactor": {
+            const user = users.find((u) => `mock-token-${u.id}` === token);
+            if (user) setUser(user.id, { twoFactorEnabled: false });
+            return { data: { disableTwoFactor: true } };
+        }
+        case "RegenerateRecoveryCodes":
+            return { data: { regenerateRecoveryCodes: RECOVERY } };
+        case "ResetUserTwoFactor": {
+            const user = users.find((u) => u.id === variables?.userId);
+            if (!user) return notFound("User");
+            setUser(user.id, { twoFactorEnabled: false });
+            return { data: { resetUserTwoFactor: true } };
+        }
+        case "SmsLogs": {
+            const status = variables?.status as string | null | undefined;
+            return {
+                data: { smsLogs: status ? smsLogs.filter((m) => m.status === status) : smsLogs },
+            };
+        }
+        case "TherapistConflicts": {
+            const t = therapists.find((x) => x.id === id);
+            if (!t) return notFound("Therapist");
+            return {
+                data: {
+                    therapistConflicts: conflictsFor(
+                        t,
+                        (variables?.offDays as number[] | null) ?? t.offDays,
+                        (variables?.leaveDates as string[] | null) ?? t.leaveDates,
+                    ),
+                },
+            };
+        }
+        case "ResetClientApp": {
+            const c = clients.find((x) => x.id === id);
+            if (!c) return notFound("Client");
+            const reset = { ...c, appEnabledAt: null };
+            clients = clients.map((x) => (x.id === c.id ? reset : x));
+            return { data: { resetClientApp: clientView(reset) } };
         }
         case "Register": {
             if (users.some((u) => u.email === input.email)) {
@@ -432,6 +644,7 @@ export async function mockGraphql(
                 email: input.email,
                 role: { id: "r2", name: "USER" },
                 extraPerms: [],
+                twoFactorEnabled: false,
                 createdAt: new Date().toISOString(),
             };
             users.push(user);
@@ -451,7 +664,13 @@ export async function mockGraphql(
             return {
                 data: {
                     session: {
+                        twoFactorRequired:
+                            users.find((u) => `mock-token-${u.id}` === token)?.role.name ===
+                            "ADMIN",
                         effectivePerms: [
+                            "readUsers",
+                            "resetTwoFactor",
+                            "readSmsLogs",
                             "createTherapist",
                             "updateTherapist",
                             "deleteTherapist",
@@ -498,6 +717,14 @@ export async function mockGraphql(
             if (!t) return notFound("Therapist");
             const updated = { ...t, ...sent(variables!.input as Partial<Therapist>) };
             therapists = therapists.map((x) => (x.id === id ? updated : x));
+            // Like the server: bookings on days the therapist no longer works are cancelled
+            for (const b of conflictsFor(updated, updated.offDays, updated.leaveDates)) {
+                cancel(b.id);
+                textClient(
+                    b,
+                    `Hi ${firstName(b)}, sorry: ${updated.name} is no longer available for your ${whenLabel(b.start)} booking at Kisetsu Spa, so it was cancelled. Please rebook at https://kisetsuspa.com/book.`,
+                );
+            }
             return { data: { updateTherapist: updated } };
         }
         case "DeleteTherapist":
@@ -696,7 +923,7 @@ export async function mockGraphql(
         case "Bookings": {
             const from = Date.parse(variables!.from as string);
             const to = Date.parse(variables!.to as string);
-            const inRange = bookings
+            const inRange = active()
                 .filter((b) => Date.parse(b.start) < to && Date.parse(b.end) > from)
                 .sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
             return { data: { bookings: inRange } };
@@ -773,10 +1000,24 @@ export async function mockGraphql(
             bookings = bookings.map((x) => (x.id === id ? updated : x));
             return { data: { updateBooking: updated } };
         }
-        case "DeleteBooking":
-            if (!bookings.some((x) => x.id === id)) return notFound("Booking");
-            bookings = bookings.filter((x) => x.id !== id);
+        case "DeleteBooking": {
+            const b = bookings.find((x) => x.id === id);
+            if (!b) return notFound("Booking");
+            if (b.status === "cancelled")
+                return {
+                    error: {
+                        message: "This booking is already cancelled",
+                        code: "BOOKING_CANCELLED",
+                    },
+                };
+            cancel(b.id);
+            if (variables?.notifyClient)
+                textClient(
+                    b,
+                    `Hi ${firstName(b)}, your ${whenLabel(b.start)} booking at Kisetsu Spa has been cancelled. To book again, visit https://kisetsuspa.com/book.`,
+                );
             return { data: { deleteBooking: true } };
+        }
         default:
             return { error: { message: `Mock has no handler for this operation` } };
     }
@@ -855,7 +1096,7 @@ function mockSalesReport(variables: Record<string, unknown>): SalesReport {
         ...money(),
         lines: [],
     }));
-    const totals = { bookings: 0, minutes: 0, unpriced: 0, requested: 0, ...money() };
+    const totals = { bookings: 0, minutes: 0, unpriced: 0, requested: 0, online: 0, ...money() };
     const unpriced: SalesReport["unpriced"] = [];
     const promoRows = new Map<string, SalesReport["promos"][number]>();
     const clientRows = new Map<string, SalesReport["clients"]["top"][number]>();
@@ -883,10 +1124,17 @@ function mockSalesReport(variables: Record<string, unknown>): SalesReport {
         row.revenue += line.unitPrice - discount;
     };
 
+    let cancelled = 0;
     for (const b of bookings) {
         const start = new Date(b.start);
         const end = Date.parse(b.end);
-        if (start < from || start >= to || (!includeUpcoming && end > nowMs)) continue;
+        if (start < from || start >= to) continue;
+        if (b.status === "cancelled") {
+            cancelled++;
+            continue;
+        }
+        if (!includeUpcoming && end > nowMs) continue;
+        if (b.source === "client") totals.online++;
         const minutes = Math.round((end - start.getTime()) / 60_000);
         const row = rows.find((r) => r.therapistId === b.therapistId);
         const svc = services.find((s) => s.id === b.serviceId);
@@ -908,7 +1156,7 @@ function mockSalesReport(variables: Record<string, unknown>): SalesReport {
                   mobile: b.clientMobile ?? "",
                   bookings: 0,
                   revenue: 0,
-                  totalVisits: bookings.filter(
+                  totalVisits: active().filter(
                       (x) => x.clientId === b.clientId && Date.parse(x.end) <= nowMs,
                   ).length,
               })
@@ -1027,5 +1275,6 @@ function mockSalesReport(variables: Record<string, unknown>): SalesReport {
                 .slice(0, 10)
                 .map((c) => ({ ...c, revenue: r2(c.revenue) })),
         },
+        cancellations: { total: cancelled, byStaff: cancelled, therapistUnavailable: 0 },
     };
 }

@@ -98,12 +98,16 @@ function summarySheet(wb: Workbook, report: SalesReport) {
         ["Promo discounts", totals.discounts, PESO],
         ["Services rendered", totals.bookings, "#,##0"],
         ["Requested by name", totals.requested, "#,##0"],
+        ["Booked online", totals.online, "#,##0"],
         ["Clients", clients.uniqueClients, "#,##0"],
         ["New clients", clients.newClients, "#,##0"],
         ["Returning clients", clients.returningClients, "#,##0"],
         ["Hours booked", totals.minutes / 60, "#,##0.0"],
         ["Average per service", priced > 0 ? totals.revenue / priced : 0, PESO],
         ["Without a price", totals.unpriced, "#,##0"],
+        ["Cancelled", report.cancellations.total, "#,##0"],
+        ["  by staff", report.cancellations.byStaff, "#,##0"],
+        ["  therapist unavailable", report.cancellations.therapistUnavailable, "#,##0"],
     ];
     for (const [label, value, numFmt] of figures) {
         const row = ws.addRow([label, value]);

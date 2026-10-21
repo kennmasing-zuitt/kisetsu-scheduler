@@ -9,3 +9,7 @@ query Users {
         totalPages
     }
 }
+
+mutation ResetUserTwoFactor($userId: ID!) {
+    resetUserTwoFactor(userId: $userId)
+}

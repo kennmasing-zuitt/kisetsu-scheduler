@@ -1,0 +1,15 @@
+query SmsLogs($status: SmsStatus, $limit: Int) {
+    smsLogs(status: $status, limit: $limit) {
+        id
+        to
+        purpose
+        message
+        status
+        attempts
+        error
+        bookingId
+        clientId
+        createdAt
+        sentAt
+    }
+}

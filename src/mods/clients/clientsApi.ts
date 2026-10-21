@@ -3,11 +3,13 @@ import {
     ClientBookingsDocument,
     ClientByMobileDocument,
     ClientsDocument,
+    ResetClientAppDocument,
     UpdateClientDocument,
     type ClientBookingsQuery,
     type ClientByMobileQuery,
     type ClientsQuery,
     type ClientsQueryVariables,
+    type ResetClientAppMutation,
     type UpdateClientMutation,
     type UpdateClientMutationVariables,
 } from "@/gql/graphql";
@@ -53,6 +55,12 @@ export const clientsApi = baseApi.injectEndpoints({
             transformResponse: (data: UpdateClientMutation) => data.updateClient,
             invalidatesTags: ["Client", "Booking", "Report"],
         }),
+        /** Lost phone: turns off the client's app sign-in on the booking site */
+        resetClientApp: build.mutation<Client, string>({
+            query: (id) => ({ document: ResetClientAppDocument, variables: { id } }),
+            transformResponse: (data: ResetClientAppMutation) => data.resetClientApp,
+            invalidatesTags: ["Client"],
+        }),
     }),
 });
 
@@ -61,4 +69,5 @@ export const {
     useGetClientByMobileQuery,
     useGetClientBookingsQuery,
     useUpdateClientMutation,
+    useResetClientAppMutation,
 } = clientsApi;

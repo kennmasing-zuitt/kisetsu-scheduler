@@ -127,9 +127,9 @@ export default function ScheduleCalendar({
             const room = roomById.get(b.roomId);
             return {
                 id: b.id,
-                // ★ = the client asked for this therapist by name
+                // ★ = the client asked for this therapist by name; 📱 = booked online by the client
                 title: [
-                    b.isRequested ? `★ ${b.client}` : b.client,
+                    `${b.source === "client" ? "📱 " : ""}${b.isRequested ? "★ " : ""}${b.client}`,
                     b.serviceId ? serviceById.get(b.serviceId)?.name : null,
                     room?.name ?? "No room",
                 ]

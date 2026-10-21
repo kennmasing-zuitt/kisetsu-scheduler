@@ -20,6 +20,9 @@ import {
     UpdateBookingDocument,
     UpdateRoomDocument,
     UpdateTherapistDocument,
+    TherapistConflictsDocument,
+    type TherapistConflictsQuery,
+    type TherapistConflictsQueryVariables,
     type BookingsQuery,
     type BookingsQueryVariables,
     type CreateBookingMutation,
@@ -119,7 +122,17 @@ export const scheduleApi = baseApi.injectEndpoints({
                     patch.undo();
                 }
             },
-            invalidatesTags: ["Therapist"],
+            // New days off / leave cancel clashing bookings on the server (and text the clients)
+            invalidatesTags: (_result, _error, { input }) =>
+                input.offDays || input.leaveDates
+                    ? ["Therapist", "Booking", "Report", "Client", "Sms"]
+                    : ["Therapist"],
+        }),
+        /** Upcoming bookings that these days off / leave dates would cancel (ask before saving) */
+        getTherapistConflicts: build.query<Booking[], TherapistConflictsQueryVariables>({
+            query: (variables) => ({ document: TherapistConflictsDocument, variables }),
+            transformResponse: (data: TherapistConflictsQuery) => data.therapistConflicts,
+            keepUnusedDataFor: 0,
         }),
         deleteTherapist: build.mutation<DeleteTherapistMutation["deleteTherapist"], string>({
             query: (id) => ({ document: DeleteTherapistDocument, variables: { id } }),
@@ -271,10 +284,17 @@ export const scheduleApi = baseApi.injectEndpoints({
             invalidatesTags: ["Booking", "Report", "Client", "Promo"],
         }),
         /** Cancels a booking. */
-        deleteBooking: build.mutation<DeleteBookingMutation["deleteBooking"], string>({
-            query: (id) => ({ document: DeleteBookingDocument, variables: { id } }),
+        /** Cancels (the booking is kept but frees its slot); notifyClient texts the client */
+        deleteBooking: build.mutation<
+            DeleteBookingMutation["deleteBooking"],
+            { id: string; notifyClient?: boolean }
+        >({
+            query: ({ id, notifyClient }) => ({
+                document: DeleteBookingDocument,
+                variables: { id, notifyClient: notifyClient ?? false },
+            }),
             transformResponse: (data: DeleteBookingMutation) => data.deleteBooking,
-            invalidatesTags: ["Booking", "Report", "Client", "Promo"],
+            invalidatesTags: ["Booking", "Report", "Client", "Promo", "Sms"],
         }),
     }),
 });
@@ -283,6 +303,7 @@ export const {
     useGetTherapistsQuery,
     useCreateTherapistMutation,
     useUpdateTherapistMutation,
+    useLazyGetTherapistConflictsQuery,
     useDeleteTherapistMutation,
     useGetRoomsQuery,
     useCreateRoomMutation,

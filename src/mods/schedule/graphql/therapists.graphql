@@ -19,3 +19,9 @@ mutation UpdateTherapist($id: ID!, $input: UpdateTherapistInput!) {
 mutation DeleteTherapist($id: ID!) {
     deleteTherapist(id: $id)
 }
+
+query TherapistConflicts($id: ID!, $offDays: [Int!], $leaveDates: [String!]) {
+    therapistConflicts(id: $id, offDays: $offDays, leaveDates: $leaveDates) {
+        ...BookingFields
+    }
+}
