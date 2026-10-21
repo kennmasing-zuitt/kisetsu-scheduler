@@ -1,8 +1,10 @@
 import type { AuthPayload, User } from "@/mods/auth/types";
-import type { Booking, Room, Service, Therapist } from "@/mods/schedule/types";
+import type { Booking, Promo, Room, Service, Therapist } from "@/mods/schedule/types";
 import type { SalesReport } from "@/mods/reports/types";
 import { findServicePrice, priceDayOf } from "@/mods/schedule/lib/pricing";
 import { toDateKey } from "@/mods/schedule/lib/availability";
+import { promoDiscount } from "@/mods/schedule/lib/promos";
+import { MOBILE_HINT, normalizeMobile } from "@/mods/clients/lib/mobile";
 import type { GraphqlError } from "@/lib/graphqlBaseQuery";
 
 /**
@@ -159,55 +161,131 @@ let services: Service[] = [
     },
 ];
 
-let bookings: Booking[] = [
+// ---------- Clients & promos ----------
+interface MockClient {
+    id: string;
+    mobile: string;
+    firstName: string;
+    lastName: string;
+    notes: string;
+    createdAt: string;
+}
+
+let clients: MockClient[] = [
     {
-        id: "b1",
-        client: "Mr. Cruz",
-        therapistId: "ana",
-        roomId: "room-1",
-        serviceId: "haru",
-        start: todayAt(15),
-        end: todayAt(16, 20),
+        id: "c1",
+        mobile: "+639171234567",
+        firstName: "Juan",
+        lastName: "Cruz",
+        notes: "Prefers light pressure",
+        createdAt: now,
     },
     {
-        id: "b2",
-        client: "Ms. Reyes",
-        therapistId: "ben",
-        roomId: "room-2",
-        serviceId: "fuyu",
-        start: todayAt(15),
-        end: todayAt(16),
+        id: "c2",
+        mobile: "+639181234567",
+        firstName: "Maria",
+        lastName: "Reyes",
+        notes: "",
+        createdAt: now,
     },
     {
-        id: "b3",
-        client: "Mr. Lim",
-        therapistId: "ben",
-        roomId: "room-2",
-        serviceId: "natsu",
-        start: todayAt(16, 30),
-        end: todayAt(17, 30),
+        id: "c3",
+        mobile: "+639191234567",
+        firstName: "Paolo",
+        lastName: "Lim",
+        notes: "",
+        createdAt: now,
     },
     {
-        id: "b4",
-        client: "Mrs. Santos",
-        therapistId: "carla",
-        roomId: "room-3",
-        serviceId: "shiki",
-        start: todayAt(15, 30),
-        end: todayAt(17, 30),
+        id: "c4",
+        mobile: "+639201234567",
+        firstName: "Ana",
+        lastName: "Santos",
+        notes: "",
+        createdAt: now,
     },
     {
-        id: "b5",
-        client: "Ms. Tan",
-        therapistId: "dana",
-        roomId: "room-4",
-        serviceId: "aki",
-        start: todayAt(13, 30),
-        end: todayAt(14, 30),
+        id: "c5",
+        mobile: "+639211234567",
+        firstName: "Liza",
+        lastName: "Tan",
+        notes: "",
+        createdAt: now,
     },
 ];
 
-// A few weeks of past bookings, so reports have something to show
+let promos: Promo[] = [
+    {
+        id: "pr1",
+        code: "KISETSU10",
+        description: "10% off for members",
+        discountType: "percent",
+        value: 10,
+        validFrom: PRICES_FROM,
+        validTo: null,
+        serviceIds: [],
+        isActive: true,
+        timesUsed: 0,
+        isLocked: false,
+    },
+    {
+        id: "pr2",
+        code: "AKI100",
+        description: "₱100 off Aki",
+        discountType: "amount",
+        value: 100,
+        validFrom: PRICES_FROM,
+        validTo: null,
+        serviceIds: ["aki"],
+        isActive: true,
+        timesUsed: 0,
+        isLocked: false,
+    },
+];
+
+const fullName = (c: MockClient) => [c.firstName, c.lastName].filter(Boolean).join(" ");
+
+const booking = (
+    id: string,
+    client: MockClient,
+    therapistId: string,
+    roomId: string,
+    serviceId: string,
+    start: string,
+    end: string,
+    extra: Partial<Booking> = {},
+): Booking => ({
+    id,
+    client: fullName(client),
+    clientId: client.id,
+    clientMobile: client.mobile,
+    isRequested: false,
+    promoId: null,
+    promoCode: null,
+    therapistId,
+    roomId,
+    serviceId,
+    start,
+    end,
+    ...extra,
+});
+
+let bookings: Booking[] = [
+    booking("b1", clients[0], "ana", "room-1", "haru", todayAt(15), todayAt(16, 20), {
+        isRequested: true,
+    }),
+    booking("b2", clients[1], "ben", "room-2", "fuyu", todayAt(15), todayAt(16), {
+        promoId: "pr1",
+        promoCode: "KISETSU10",
+    }),
+    booking("b3", clients[2], "ben", "room-2", "natsu", todayAt(16, 30), todayAt(17, 30)),
+    booking("b4", clients[3], "carla", "room-3", "shiki", todayAt(15, 30), todayAt(17, 30), {
+        isRequested: true,
+    }),
+    booking("b5", clients[4], "dana", "room-4", "aki", todayAt(13, 30), todayAt(14, 30)),
+];
+
+// A few weeks of past bookings, so reports and client histories have something to show
 const PAST_PLAN: [string, string, number][] = [
     ["ana", "fuyu", 60],
     ["ben", "natsu", 80],
@@ -222,17 +300,89 @@ for (let day = 1; day <= 40; day++) {
         const start = new Date();
         start.setDate(start.getDate() - day);
         start.setHours(11 + k * 3, 0, 0, 0);
-        bookings.push({
-            id: `past-${day}-${k}`,
-            client: `Client ${day}-${k + 1}`,
-            therapistId,
-            roomId: `room-${(k % 4) + 1}`,
-            serviceId,
-            start: start.toISOString(),
-            end: new Date(start.getTime() + minutes * 60_000).toISOString(),
-        });
+        const client = clients[(day + k) % clients.length];
+        bookings.push(
+            booking(
+                `past-${day}-${k}`,
+                client,
+                therapistId,
+                `room-${(k % 4) + 1}`,
+                serviceId,
+                start.toISOString(),
+                new Date(start.getTime() + minutes * 60_000).toISOString(),
+                {
+                    isRequested: (day + k) % 3 === 0,
+                    ...(day % 5 === 0 ? { promoId: "pr1", promoCode: "KISETSU10" } : {}),
+                },
+            ),
+        );
     }
 }
+
+/** A client as the API returns it: with full name and visit counts */
+function clientView(c: MockClient) {
+    const nowMs = Date.now();
+    const mine = bookings.filter((b) => b.clientId === c.id);
+    const visits = mine.filter((b) => Date.parse(b.end) <= nowMs);
+    const starts = visits.map((b) => b.start).sort();
+    const byTherapist = new Map<string, number>();
+    for (const b of visits)
+        byTherapist.set(b.therapistId, (byTherapist.get(b.therapistId) ?? 0) + 1);
+    const favourite = [...byTherapist].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+    return {
+        ...c,
+        fullName: fullName(c),
+        stats: {
+            visits: visits.length,
+            upcoming: mine.length - visits.length,
+            firstVisit: starts[0] ?? null,
+            lastVisit: starts.at(-1) ?? null,
+            requested: visits.filter((b) => b.isRequested).length,
+            favouriteTherapistId: favourite,
+            favouriteTherapistName: therapists.find((t) => t.id === favourite)?.name ?? null,
+        },
+    };
+}
+
+const promoView = (pr: Promo): Promo => {
+    const timesUsed = bookings.filter((b) => b.promoId === pr.id).length;
+    return { ...pr, timesUsed, isLocked: timesUsed > 0 };
+};
+
+/** Finds the client by mobile or creates them (the real server does the same) */
+function clientFor(
+    input: Record<string, unknown>,
+): { client: MockClient } | { error: GraphqlError } {
+    const mobile = normalizeMobile(String(input.clientMobile ?? ""));
+    if (!mobile) return { error: { message: MOBILE_HINT, code: "VALIDATION_ERROR" } };
+    let client = clients.find((c) => c.mobile === mobile);
+    if (!client) {
+        if (!input.clientFirstName)
+            return {
+                error: {
+                    message: "Enter the first name: this mobile number is a new client",
+                    code: "VALIDATION_ERROR",
+                },
+            };
+        client = {
+            id: `c-${clients.length + 1}`,
+            mobile,
+            firstName: String(input.clientFirstName),
+            lastName: String(input.clientLastName ?? ""),
+            notes: "",
+            createdAt: new Date().toISOString(),
+        };
+        clients = [...clients, client];
+    }
+    return { client };
+}
+
+const promoFor = (code: unknown) => {
+    const c = String(code ?? "")
+        .trim()
+        .toUpperCase();
+    return c ? promos.find((x) => x.code === c) : undefined;
+};
 
 let nextId = 100;
 const newId = () => `mock-${nextId++}`;
@@ -315,6 +465,11 @@ export async function mockGraphql(
                             "updateService",
                             "deleteService",
                             "readReports",
+                            "readClients",
+                            "updateClient",
+                            "createPromo",
+                            "updatePromo",
+                            "deletePromo",
                         ],
                     },
                 },
@@ -419,6 +574,123 @@ export async function mockGraphql(
                 };
             services = services.filter((x) => x.id !== id);
             return { data: { deleteService: true } };
+        case "Clients": {
+            const q = String(variables?.search ?? "")
+                .trim()
+                .toLowerCase();
+            const digits = q.replace(/\D/g, "").replace(/^(?:63|0)/, "");
+            const list = clients
+                .filter(
+                    (c) =>
+                        !q ||
+                        q.split(/\s+/).every((w) => fullName(c).toLowerCase().includes(w)) ||
+                        (digits.length >= 3 && c.mobile.includes(digits)),
+                )
+                .sort((a, b) => fullName(a).localeCompare(fullName(b)))
+                .map(clientView);
+            return {
+                data: {
+                    clients: { data: list, page: 1, limit: 20, total: list.length, totalPages: 1 },
+                },
+            };
+        }
+        case "ClientByMobile": {
+            const mobile = normalizeMobile(String(variables?.mobile ?? ""));
+            if (!mobile) return { error: { message: MOBILE_HINT, code: "VALIDATION_ERROR" } };
+            const c = clients.find((x) => x.mobile === mobile);
+            return { data: { clientByMobile: c ? clientView(c) : null } };
+        }
+        case "ClientBookings": {
+            const list = bookings
+                .filter((b) => b.clientId === variables?.clientId)
+                .sort((a, b) => Date.parse(b.start) - Date.parse(a.start))
+                .slice(0, 20);
+            return { data: { clientBookings: list } };
+        }
+        case "UpdateClient": {
+            const c = clients.find((x) => x.id === id);
+            if (!c) return notFound("Client");
+            const input = sent(variables!.input as Partial<MockClient>);
+            const mobile = input.mobile ? normalizeMobile(input.mobile) : c.mobile;
+            if (!mobile) return { error: { message: MOBILE_HINT, code: "VALIDATION_ERROR" } };
+            if (clients.some((x) => x.id !== c.id && x.mobile === mobile))
+                return {
+                    error: {
+                        message: "Another client already has this mobile number",
+                        code: "CLIENT_MOBILE_TAKEN",
+                    },
+                };
+            const updated = { ...c, ...input, mobile };
+            clients = clients.map((x) => (x.id === id ? updated : x));
+            bookings = bookings.map((b) =>
+                b.clientId === id ? { ...b, client: fullName(updated), clientMobile: mobile } : b,
+            );
+            return { data: { updateClient: clientView(updated) } };
+        }
+        case "Promos": {
+            const all = Boolean(variables?.includeArchived);
+            return { data: { promos: promos.filter((x) => all || x.isActive).map(promoView) } };
+        }
+        case "CreatePromo": {
+            const input = variables!.input as Omit<Promo, "id" | "timesUsed" | "isLocked">;
+            const code = input.code.toUpperCase();
+            if (promos.some((x) => x.code === code))
+                return {
+                    error: {
+                        message: `The promo code ${code} already exists`,
+                        code: "PROMO_CODE_TAKEN",
+                    },
+                };
+            const pr: Promo = {
+                ...input,
+                description: input.description ?? "",
+                serviceIds: input.serviceIds ?? [],
+                validTo: input.validTo ?? null,
+                isActive: input.isActive ?? true,
+                code,
+                id: newId(),
+                timesUsed: 0,
+                isLocked: false,
+            };
+            promos = [...promos, pr];
+            return { data: { createPromo: promoView(pr) } };
+        }
+        case "UpdatePromo": {
+            const pr = promos.find((x) => x.id === id);
+            if (!pr) return notFound("Promo");
+            const input = variables!.input as Partial<Promo>;
+            const view = promoView(pr);
+            const terms = (["code", "discountType", "value", "serviceIds"] as const).filter(
+                (k) => input[k] !== undefined && JSON.stringify(input[k]) !== JSON.stringify(pr[k]),
+            );
+            if (view.isLocked && terms.length)
+                return {
+                    error: {
+                        message: `${pr.code} has been used, so its terms can't change. Create a new code instead.`,
+                        code: "PROMO_LOCKED",
+                    },
+                };
+            const updated = {
+                ...pr,
+                ...sent(input),
+                ...("validTo" in input ? { validTo: input.validTo ?? null } : {}),
+            };
+            promos = promos.map((x) => (x.id === id ? updated : x));
+            return { data: { updatePromo: promoView(updated) } };
+        }
+        case "DeletePromo": {
+            const pr = promos.find((x) => x.id === id);
+            if (!pr) return notFound("Promo");
+            if (promoView(pr).isLocked)
+                return {
+                    error: {
+                        message: `${pr.code} was used. Archive it instead.`,
+                        code: "PROMO_IN_USE",
+                    },
+                };
+            promos = promos.filter((x) => x.id !== id);
+            return { data: { deletePromo: true } };
+        }
         case "SalesReport":
             return { data: { salesReport: mockSalesReport(variables!) } };
         case "Bookings": {
@@ -430,14 +702,74 @@ export async function mockGraphql(
             return { data: { bookings: inRange } };
         }
         case "CreateBooking": {
-            const b = { ...(variables!.input as Omit<Booking, "id">), id: newId() };
+            const input = variables!.input as Record<string, unknown>;
+            const found = clientFor(input);
+            if ("error" in found) return { error: found.error };
+            const promo = promoFor(input.promoCode);
+            if (input.promoCode && !promo)
+                return {
+                    error: {
+                        message: "That promo code doesn't exist",
+                        code: "PROMO_NOT_APPLICABLE",
+                    },
+                };
+            const b = booking(
+                newId(),
+                found.client,
+                String(input.therapistId),
+                String(input.roomId),
+                String(input.serviceId),
+                String(input.start),
+                String(input.end),
+                {
+                    isRequested: Boolean(input.isRequested),
+                    promoId: promo?.id ?? null,
+                    promoCode: promo?.code ?? null,
+                },
+            );
             bookings = [...bookings, b];
             return { data: { createBooking: b } };
         }
         case "UpdateBooking": {
             const b = bookings.find((x) => x.id === id);
             if (!b) return notFound("Booking");
-            const updated = { ...b, ...sent(variables!.input as Partial<Booking>) };
+            const input = variables!.input as Record<string, unknown>;
+            let updated: Booking = {
+                ...b,
+                ...sent({
+                    therapistId: input.therapistId as string | undefined,
+                    roomId: input.roomId as string | undefined,
+                    serviceId: input.serviceId as string | undefined,
+                    start: input.start as string | undefined,
+                    end: input.end as string | undefined,
+                    isRequested: input.isRequested as boolean | undefined,
+                }),
+            };
+            if (input.clientMobile) {
+                const found = clientFor(input);
+                if ("error" in found) return { error: found.error };
+                updated = {
+                    ...updated,
+                    client: fullName(found.client),
+                    clientId: found.client.id,
+                    clientMobile: found.client.mobile,
+                };
+            }
+            if (input.promoCode !== undefined && input.promoCode !== null) {
+                const promo = promoFor(input.promoCode);
+                if (input.promoCode && !promo)
+                    return {
+                        error: {
+                            message: "That promo code doesn't exist",
+                            code: "PROMO_NOT_APPLICABLE",
+                        },
+                    };
+                updated = {
+                    ...updated,
+                    promoId: promo?.id ?? null,
+                    promoCode: promo?.code ?? null,
+                };
+            }
             bookings = bookings.map((x) => (x.id === id ? updated : x));
             return { data: { updateBooking: updated } };
         }
@@ -497,34 +829,64 @@ function mockSalesReport(variables: Record<string, unknown>): SalesReport {
         }
     }
     const series = keys.map((key) => ({ key, bookings: 0, revenue: 0 }));
-    const rows = therapists.map((t) => ({
+    type Row = SalesReport["therapists"][number];
+    type SvcRow = SalesReport["services"][number];
+    type Line = Row["lines"][number];
+    const money = () => ({ grossRevenue: 0, discounts: 0, revenue: 0 });
+    const rows: Row[] = therapists.map((t) => ({
         therapistId: t.id,
         therapistName: t.name,
         bookings: 0,
         minutes: 0,
-        revenue: 0,
         unpriced: 0,
-        services: [] as SalesReport["therapists"][number]["services"],
-        lines: [] as SalesReport["therapists"][number]["lines"],
+        requested: 0,
+        requestRate: 0,
+        ...money(),
+        services: [],
+        lines: [],
     }));
-    const svcRows = services.map((s) => ({
+    const svcRows: SvcRow[] = services.map((s) => ({
         serviceId: s.id,
         serviceName: s.name,
         isActive: s.isActive,
         bookings: 0,
         minutes: 0,
-        revenue: 0,
         unpriced: 0,
-        lines: [] as SalesReport["services"][number]["lines"],
+        ...money(),
+        lines: [],
     }));
-    const totals = { bookings: 0, minutes: 0, revenue: 0, unpriced: 0 };
+    const totals = { bookings: 0, minutes: 0, unpriced: 0, requested: 0, ...money() };
     const unpriced: SalesReport["unpriced"] = [];
-    const now = Date.now();
+    const promoRows = new Map<string, SalesReport["promos"][number]>();
+    const clientRows = new Map<string, SalesReport["clients"]["top"][number]>();
+    let noClient = 0;
+    const nowMs = Date.now();
+
+    const addLine = (
+        lines: Line[],
+        line: Omit<Line, "bookings" | keyof ReturnType<typeof money>>,
+        discount: number,
+    ) => {
+        let row = lines.find(
+            (l) =>
+                l.serviceId === line.serviceId &&
+                l.durationMin === line.durationMin &&
+                l.unitPrice === line.unitPrice,
+        );
+        if (!row) {
+            row = { ...line, bookings: 0, ...money() };
+            lines.push(row);
+        }
+        row.bookings++;
+        row.grossRevenue += line.unitPrice;
+        row.discounts += discount;
+        row.revenue += line.unitPrice - discount;
+    };
 
     for (const b of bookings) {
         const start = new Date(b.start);
         const end = Date.parse(b.end);
-        if (start < from || start >= to || (!includeUpcoming && end > now)) continue;
+        if (start < from || start >= to || (!includeUpcoming && end > nowMs)) continue;
         const minutes = Math.round((end - start.getTime()) / 60_000);
         const row = rows.find((r) => r.therapistId === b.therapistId);
         const svc = services.find((s) => s.id === b.serviceId);
@@ -532,11 +894,43 @@ function mockSalesReport(variables: Record<string, unknown>): SalesReport {
         const bucket = series.find((x) => x.key === bucketOf(start));
         totals.bookings++;
         totals.minutes += minutes;
+        if (b.isRequested) totals.requested++;
         if (bucket) bucket.bookings++;
         if (row) {
             row.bookings++;
             row.minutes += minutes;
+            if (b.isRequested) row.requested++;
         }
+        const client = b.clientId
+            ? (clientRows.get(b.clientId) ?? {
+                  clientId: b.clientId,
+                  name: b.client,
+                  mobile: b.clientMobile ?? "",
+                  bookings: 0,
+                  revenue: 0,
+                  totalVisits: bookings.filter(
+                      (x) => x.clientId === b.clientId && Date.parse(x.end) <= nowMs,
+                  ).length,
+              })
+            : null;
+        if (client) {
+            client.bookings++;
+            clientRows.set(client.clientId, client);
+        } else noClient++;
+        const promo = b.promoId ? promos.find((x) => x.id === b.promoId) : undefined;
+        const promoRow = promo
+            ? (promoRows.get(promo.id) ?? {
+                  promoId: promo.id,
+                  code: promo.code,
+                  bookings: 0,
+                  discounts: 0,
+              })
+            : undefined;
+        if (promo && promoRow) {
+            promoRow.bookings++;
+            promoRows.set(promo.id, promoRow);
+        }
+
         const rule = svc && findServicePrice(svc.prices, priceDayOf(start), minutes);
         if (svcRow) {
             svcRow.bookings++;
@@ -568,35 +962,40 @@ function mockSalesReport(variables: Record<string, unknown>): SalesReport {
             });
             continue;
         }
-        const amount = rule.amount;
-        totals.revenue += amount;
-        if (bucket) bucket.revenue += amount;
-        for (const target of [row, svcRow]) {
+        const gross = rule.amount;
+        const discount = promo ? promoDiscount(promo, gross) : 0;
+        const net = gross - discount;
+        for (const target of [totals, row, svcRow]) {
             if (!target) continue;
-            target.revenue += amount;
-            const line = target.lines.find(
-                (l) =>
-                    l.serviceId === svc.id && l.durationMin === minutes && l.unitPrice === amount,
-            );
-            if (line) {
-                line.bookings++;
-                line.revenue += amount;
-            } else
-                target.lines.push({
-                    serviceId: svc.id,
-                    serviceName: svc.name,
-                    durationMin: minutes,
-                    unitPrice: amount,
-                    bookings: 1,
-                    revenue: amount,
-                });
+            target.grossRevenue += gross;
+            target.discounts += discount;
+            target.revenue += net;
         }
+        if (bucket) bucket.revenue += net;
+        if (client) client.revenue += net;
+        if (promoRow) promoRow.discounts += discount;
+        const line = {
+            serviceId: svc.id,
+            serviceName: svc.name,
+            durationMin: minutes,
+            unitPrice: gross,
+        };
+        if (row) addLine(row.lines, line, discount);
+        if (svcRow) addLine(svcRow.lines, line, discount);
         const count = row?.services.find((c) => c.serviceId === svc.id);
-        if (count) count.revenue += amount;
+        if (count) count.revenue += net;
     }
 
+    const r2 = (n: number) => Math.round(n * 100) / 100;
     const last = new Date(to);
     last.setDate(last.getDate() - 1);
+    const clientList = [...clientRows.values()];
+    const firstBooking = (id: string) =>
+        bookings
+            .filter((x) => x.clientId === id)
+            .map((x) => x.start)
+            .sort()[0];
+    const newClients = clientList.filter((c) => new Date(firstBooking(c.clientId)) >= from).length;
     return {
         period,
         from: toDateKey(from),
@@ -605,10 +1004,28 @@ function mockSalesReport(variables: Record<string, unknown>): SalesReport {
         currency: "PHP",
         includeUpcoming,
         generatedAt: new Date().toISOString(),
-        totals,
-        therapists: rows,
-        services: svcRows.filter((s) => s.isActive || s.bookings > 0),
-        series,
+        totals: { ...totals, revenue: r2(totals.revenue), discounts: r2(totals.discounts) },
+        therapists: rows.map((r) => ({
+            ...r,
+            revenue: r2(r.revenue),
+            discounts: r2(r.discounts),
+            requestRate: r.bookings ? r2(r.requested / r.bookings) : 0,
+        })),
+        services: svcRows
+            .filter((s) => s.isActive || s.bookings > 0)
+            .map((s) => ({ ...s, revenue: r2(s.revenue), discounts: r2(s.discounts) })),
+        series: series.map((b) => ({ ...b, revenue: r2(b.revenue) })),
         unpriced,
+        promos: [...promoRows.values()].map((x) => ({ ...x, discounts: r2(x.discounts) })),
+        clients: {
+            uniqueClients: clientList.length,
+            newClients,
+            returningClients: clientList.length - newClients,
+            noClient,
+            top: clientList
+                .sort((a, b) => b.bookings - a.bookings || b.revenue - a.revenue)
+                .slice(0, 10)
+                .map((c) => ({ ...c, revenue: r2(c.revenue) })),
+        },
     };
 }

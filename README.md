@@ -201,8 +201,9 @@ therapist, 1-hour rows (Day / Week switcher).
 - **Week view:** one set of columns spans the week, so off-days are greyed out with
   per-therapist `businessHours`, and leave days with grey background events.
 - **Booking dialog:** drag down a therapist's column (10-minute steps) or press
-  **+ New booking** to open it; click a booking to edit or cancel it. Fields: client,
-  therapist, date, start, duration (presets like 1h 20m, or custom minutes) and room —
+  **+ New booking** to open it; click a booking to edit or cancel it. Fields: client
+  mobile, service, therapist, "asked for by name", date, start, duration (presets like 1h 20m,
+  or custom minutes), room and promo code —
   rooms already taken at that time are disabled. It won't save if the therapist is off or
   double-booked, the room is taken, or the time is outside opening hours.
 - **Quick edits:** drag a booking to move it, drag its edge to resize, or drag it into another
@@ -222,6 +223,25 @@ buttons follow the signed-in user's permissions (`createTherapist`, `updateRoom`
 admin has all of them), and deleting is refused while a therapist or room has upcoming
 bookings.
 
+### Clients and promo codes
+
+The booking dialog starts with the **client's mobile number** (any PH format such as
+`0917 123 4567`, or `+…` for other countries). A known number shows the client's name, visit
+count, last visit and usual therapist; a new number asks for a first name (last name optional)
+and the server adds the client when the booking is saved. Tick **The client asked for X by name**
+when they requested that therapist; requested bookings show a ★ on the calendar. A **promo code**
+is checked as you type and the price line shows gross − discount = net.
+
+**Clients** (`/clients`, needs `readClients`) lists everyone who has booked, searchable by name or
+part of the mobile, with visits, upcoming bookings, last visit, usual therapist and how often they
+asked for someone. Click a row to edit the name, mobile or notes (`updateClient`) and see recent
+bookings; existing bookings pick up the change.
+
+**Promo codes** are managed on **Manage**: percent or peso amount off, a validity period, optional
+services, and **Archive / Activate** at any time. Once a promo has been used its code, discount and
+services are locked (so past reports stay right); edit the period or description, or use
+**Duplicate** to start a new code with different terms. Unused promos can be deleted.
+
 ### Services and prices
 
 Every booking has a **service** (Fuyu, Natsu, Haru, Shiki, Aki). The booking dialog only offers
@@ -236,10 +256,12 @@ whenever a report runs.
 
 **Reports** (`/reports`, needs `readReports`) shows a daily, weekly (Mon–Sun), monthly or annual
 sales report: revenue, services rendered per therapist and per service, the prices that applied, a
-revenue chart, and any bookings that couldn't be priced. Only bookings that have ended count,
+revenue chart, and any bookings that couldn't be priced. Revenue is net of promo discounts (the
+tile and tables show gross and discounts too); therapists show how many services were requested by
+name; **Promo codes used** and **Clients** (new vs returning, top clients) follow. Only bookings that have ended count,
 unless **Include upcoming bookings** is ticked. **Download Excel** saves an `.xlsx` workbook built
 in the browser with [ExcelJS](https://github.com/exceljs/exceljs) (loaded only when you export):
-Summary, By therapist, By service & price, By hour / By day / By month and Unpriced sheets, with styled
+Summary, By therapist, By service & price, By hour / By day / By month, Promos, Top clients and Unpriced sheets, with styled
 headers, frozen panes, filters, ₱ formats and live `SUM` formulas for the totals. **Print**
 prints the page without the app chrome.
 

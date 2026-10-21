@@ -4,6 +4,7 @@
  */
 import type {
     BookingFieldsFragment,
+    PromoFieldsFragment,
     RoomFieldsFragment,
     ServiceFieldsFragment,
     ServicePriceFieldsFragment,
@@ -12,11 +13,13 @@ import type {
 
 export type {
     CreateBookingInput,
+    CreatePromoInput,
     CreateRoomInput,
     CreateServiceInput,
     CreateTherapistInput,
     ServicePriceInput,
     UpdateBookingInput,
+    UpdatePromoInput,
     UpdateRoomInput,
     UpdateServiceInput,
     UpdateTherapistInput,
@@ -40,6 +43,12 @@ export type Service = ServiceFieldsFragment;
  * dates "YYYY-MM-DD".
  */
 export type ServicePrice = ServicePriceFieldsFragment;
+
+/**
+ * A promo code: `value`% or ₱`value` off (`discountType`), usable from `validFrom` to `validTo`
+ * on `serviceIds` (empty = all). Once used (`isLocked`), code, discount and services are fixed.
+ */
+export type Promo = PromoFieldsFragment;
 
 /** A client booking: one therapist, one room, one service, one time range. Dates are ISO strings. */
 export type Booking = BookingFieldsFragment;

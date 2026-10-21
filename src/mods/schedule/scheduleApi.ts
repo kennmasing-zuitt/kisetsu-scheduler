@@ -13,6 +13,10 @@ import {
     UpdateServiceDocument,
     DeleteServiceDocument,
     TherapistsDocument,
+    PromosDocument,
+    CreatePromoDocument,
+    UpdatePromoDocument,
+    DeletePromoDocument,
     UpdateBookingDocument,
     UpdateRoomDocument,
     UpdateTherapistDocument,
@@ -35,6 +39,12 @@ import {
     type UpdateServiceMutationVariables,
     type DeleteServiceMutation,
     type TherapistsQuery,
+    type PromosQuery,
+    type CreatePromoMutation,
+    type CreatePromoMutationVariables,
+    type UpdatePromoMutation,
+    type UpdatePromoMutationVariables,
+    type DeletePromoMutation,
     type UpdateBookingMutation,
     type UpdateBookingMutationVariables,
     type UpdateRoomMutation,
@@ -53,6 +63,9 @@ import type {
     CreateServiceInput,
     UpdateServiceInput,
     Therapist,
+    Promo,
+    CreatePromoInput,
+    UpdatePromoInput,
     UpdateBookingInput,
     UpdateRoomInput,
     UpdateTherapistInput,
@@ -177,6 +190,41 @@ export const scheduleApi = baseApi.injectEndpoints({
             invalidatesTags: ["Service"],
         }),
 
+        // ---------- Promos ----------
+        /** Promo codes with usage counts. `true` includes archived ones. */
+        getPromos: build.query<Promo[], boolean | void>({
+            query: (includeArchived) => ({
+                document: PromosDocument,
+                variables: { includeArchived: Boolean(includeArchived) },
+            }),
+            transformResponse: (data: PromosQuery) => data.promos,
+            providesTags: ["Promo"],
+        }),
+        /** Errors: VALIDATION_ERROR, PROMO_CODE_TAKEN */
+        createPromo: build.mutation<Promo, CreatePromoInput>({
+            query: (input) => ({
+                document: CreatePromoDocument,
+                variables: { input } satisfies CreatePromoMutationVariables,
+            }),
+            transformResponse: (data: CreatePromoMutation) => data.createPromo,
+            invalidatesTags: ["Promo"],
+        }),
+        /** Archive / activate any time; code, discount and services lock once used (PROMO_LOCKED) */
+        updatePromo: build.mutation<Promo, UpdateArgs<UpdatePromoInput>>({
+            query: ({ id, input }) => ({
+                document: UpdatePromoDocument,
+                variables: { id, input } satisfies UpdatePromoMutationVariables,
+            }),
+            transformResponse: (data: UpdatePromoMutation) => data.updatePromo,
+            invalidatesTags: ["Promo", "Report"],
+        }),
+        /** Only for promos no booking used (PROMO_IN_USE otherwise: archive instead) */
+        deletePromo: build.mutation<DeletePromoMutation["deletePromo"], string>({
+            query: (id) => ({ document: DeletePromoDocument, variables: { id } }),
+            transformResponse: (data: DeletePromoMutation) => data.deletePromo,
+            invalidatesTags: ["Promo"],
+        }),
+
         // ---------- Bookings ----------
         /** Bookings overlapping [from, to). One cache entry per range (a calendar view, a day). */
         getBookings: build.query<Booking[], BookingRange>({
@@ -194,7 +242,7 @@ export const scheduleApi = baseApi.injectEndpoints({
                 variables: { input } satisfies CreateBookingMutationVariables,
             }),
             transformResponse: (data: CreateBookingMutation) => data.createBooking,
-            invalidatesTags: ["Booking", "Report"],
+            invalidatesTags: ["Booking", "Report", "Client", "Promo"],
         }),
         /** Edit, move or reassign. Same errors as createBooking. */
         updateBooking: build.mutation<Booking, UpdateArgs<UpdateBookingInput>>({
@@ -220,13 +268,13 @@ export const scheduleApi = baseApi.injectEndpoints({
                     patches.forEach((p) => p.undo());
                 }
             },
-            invalidatesTags: ["Booking", "Report"],
+            invalidatesTags: ["Booking", "Report", "Client", "Promo"],
         }),
         /** Cancels a booking. */
         deleteBooking: build.mutation<DeleteBookingMutation["deleteBooking"], string>({
             query: (id) => ({ document: DeleteBookingDocument, variables: { id } }),
             transformResponse: (data: DeleteBookingMutation) => data.deleteBooking,
-            invalidatesTags: ["Booking", "Report"],
+            invalidatesTags: ["Booking", "Report", "Client", "Promo"],
         }),
     }),
 });
@@ -244,6 +292,10 @@ export const {
     useCreateServiceMutation,
     useUpdateServiceMutation,
     useDeleteServiceMutation,
+    useGetPromosQuery,
+    useCreatePromoMutation,
+    useUpdatePromoMutation,
+    useDeletePromoMutation,
     useGetBookingsQuery,
     useCreateBookingMutation,
     useUpdateBookingMutation,

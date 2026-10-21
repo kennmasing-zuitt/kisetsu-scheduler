@@ -4,8 +4,14 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
     useCreateBookingMutation,
     useDeleteBookingMutation,
+    useGetPromosQuery,
     useUpdateBookingMutation,
 } from "@/mods/schedule/scheduleApi";
+import { describeDiscount, promoDiscount, promoProblem } from "@/mods/schedule/lib/promos";
+import { useClientLookup } from "@/mods/clients/lib/useClientLookup";
+import { MOBILE_HINT, formatMobile } from "@/mods/clients/lib/mobile";
+import ClientMatch from "@/mods/clients/components/ClientMatch";
+import type { Promo } from "@/mods/schedule/types";
 import { dayRange, useScheduleData } from "@/mods/schedule/lib/useScheduleData";
 import type { Booking } from "@/mods/schedule/types";
 import type { GraphqlError } from "@/lib/graphqlBaseQuery";
@@ -45,6 +51,8 @@ export const formatDuration = (min: number) => {
     const m = min % 60;
     return [h && `${h}h`, m && `${m}m`].filter(Boolean).join(" ") || "0m";
 };
+
+const NO_PROMOS: Promo[] = [];
 
 const formatTime = (d: Date) => d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 
@@ -95,7 +103,16 @@ function BookingForm({ draft, onDone }: { draft: BookingDraft; onDone: () => voi
     const ignoreId = existing?.id;
 
     const initialDuration = draft.durationMin;
-    const [client, setClient] = useState(existing?.client ?? "");
+    // Client: picked by mobile; the name is asked for only when the number is new
+    const [mobile, setMobile] = useState(formatMobile(existing?.clientMobile));
+    const [firstName, setFirstName] = useState(
+        existing && !existing.clientId ? existing.client : "",
+    );
+    const [lastName, setLastName] = useState("");
+    const [isRequested, setIsRequested] = useState(existing?.isRequested ?? false);
+    const [promoCode, setPromoCode] = useState(existing?.promoCode ?? "");
+    const lookup = useClientLookup(mobile);
+    const isNewClient = lookup.client === null;
     const [therapistId, setTherapistId] = useState(draft.therapistId);
     const [date, setDate] = useState(toDateKey(draft.start));
     const [time, setTime] = useState(toTimeValue(draft.start));
@@ -158,6 +175,20 @@ function BookingForm({ draft, onDone }: { draft: BookingDraft; onDone: () => voi
             setCustomDuration(false);
         }
     }
+    // Promo: one per booking, previewed against this booking (the server checks again)
+    const { data: promos = NO_PROMOS } = useGetPromosQuery(true);
+    const code = promoCode.trim().toUpperCase();
+    const promo = code ? promos.find((p) => p.code === code) : undefined;
+    const promoIssue = code
+        ? promoProblem(promo, code, {
+              dateKey: priceDay?.dateKey,
+              serviceId,
+              serviceName: service?.name,
+              keepsCode: code === existing?.promoCode,
+          })
+        : null;
+    const discount = promo && price && !promoIssue ? promoDiscount(promo, price.amount) : 0;
+
     const roomTaken = (id: string) => validTime && !isRoomFree(id, bookings, start, end, ignoreId);
 
     // The room actually used: the chosen one while it's free; if a time change makes it
@@ -168,6 +199,9 @@ function BookingForm({ draft, onDone }: { draft: BookingDraft; onDone: () => voi
             : (findFreeRoom(rooms, bookings, start, end, { ignoreBookingId: ignoreId })?.id ?? "");
 
     const problems: string[] = [];
+    if (!lookup.normalized)
+        problems.push(mobile.trim() ? MOBILE_HINT : "Enter the client's mobile number.");
+    else if (isNewClient && !firstName.trim()) problems.push("New client: enter their first name.");
     if (!validTime) problems.push("Enter a valid date, time and duration.");
     else {
         if (!isWithinOpeningHours(start, end))
@@ -187,23 +221,41 @@ function BookingForm({ draft, onDone }: { draft: BookingDraft; onDone: () => voi
                     ? `${service.name} isn't offered for ${formatDuration(durationMin)} on that date.`
                     : `${service.name} has no price on that date.`,
             );
+        if (promoIssue) problems.push(promoIssue);
     }
 
     async function handleSubmit(e: FormEvent) {
         e.preventDefault();
-        if (problems.length || !client.trim() || saving) return;
-        const input = {
-            client: client.trim(),
+        if (problems.length || !lookup.normalized || lookup.isLooking || saving) return;
+        const slot = {
             therapistId,
             roomId,
             serviceId,
+            isRequested,
             start: start.toISOString(),
             end: end.toISOString(),
         };
+        // Names are sent only for a new number (an existing client keeps the name on file)
+        const clientFields = {
+            clientMobile: lookup.normalized,
+            ...(isNewClient
+                ? { clientFirstName: firstName.trim(), clientLastName: lastName.trim() || null }
+                : {}),
+        };
         setServerError(null);
         try {
-            if (existing) await updateBooking({ id: existing.id, input }).unwrap();
-            else await createBooking(input).unwrap();
+            if (existing)
+                await updateBooking({
+                    id: existing.id,
+                    input: {
+                        ...slot,
+                        // Re-link only when the number changed; "" removes the promo
+                        ...(lookup.normalized !== existing.clientMobile ? clientFields : {}),
+                        promoCode: code,
+                    },
+                }).unwrap();
+            else
+                await createBooking({ ...slot, ...clientFields, promoCode: code || null }).unwrap();
             onDone();
         } catch (err) {
             setServerError((err as GraphqlError).message);
@@ -232,14 +284,41 @@ function BookingForm({ draft, onDone }: { draft: BookingDraft; onDone: () => voi
             </header>
 
             <label className="field">
-                <span>Client</span>
+                <span>Client mobile</span>
                 <input
-                    value={client}
-                    onChange={(e) => setClient(e.target.value)}
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="off"
+                    value={mobile}
+                    onChange={(e) => setMobile(e.target.value)}
+                    placeholder="0917 123 4567"
                     required
                     autoFocus
                 />
             </label>
+            {lookup.isLooking && <p className="muted small">Looking up this number…</p>}
+            {lookup.client && <ClientMatch client={lookup.client} forNewBooking={!existing} />}
+            {isNewClient && (
+                <div className="field-row">
+                    <label className="field">
+                        <span>First name (new client)</span>
+                        <input
+                            value={firstName}
+                            onChange={(e) => setFirstName(e.target.value)}
+                            maxLength={100}
+                            required
+                        />
+                    </label>
+                    <label className="field">
+                        <span>Last name</span>
+                        <input
+                            value={lastName}
+                            onChange={(e) => setLastName(e.target.value)}
+                            maxLength={100}
+                        />
+                    </label>
+                </div>
+            )}
 
             <label className="field">
                 <span>Service</span>
@@ -267,6 +346,14 @@ function BookingForm({ draft, onDone }: { draft: BookingDraft; onDone: () => voi
                         );
                     })}
                 </select>
+            </label>
+            <label className="check small">
+                <input
+                    type="checkbox"
+                    checked={isRequested}
+                    onChange={(e) => setIsRequested(e.target.checked)}
+                />
+                The client asked for {therapist?.name ?? "this therapist"} by name
             </label>
 
             <div className="field-row">
@@ -373,10 +460,40 @@ function BookingForm({ draft, onDone }: { draft: BookingDraft; onDone: () => voi
                 </select>
             </label>
 
+            <label className="field">
+                <span>Promo code</span>
+                <input
+                    value={promoCode}
+                    onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                    placeholder="Optional"
+                    maxLength={30}
+                    autoComplete="off"
+                    aria-describedby="promo-hint"
+                />
+                {promo && !promoIssue && (
+                    <small id="promo-hint" className="muted small">
+                        {promo.code}: {describeDiscount(promo)}
+                        {promo.description ? ` · ${promo.description}` : ""}
+                    </small>
+                )}
+            </label>
+
             {price && (
-                <p className="dialog__price">
-                    <span className="muted">Price</span> <strong>{formatPeso(price.amount)}</strong>
-                </p>
+                <div className="dialog__price">
+                    {discount > 0 ? (
+                        <>
+                            <span className="muted">
+                                {formatPeso(price.amount)} − {formatPeso(discount)} ({promo!.code})
+                            </span>
+                            <strong>{formatPeso(price.amount - discount)}</strong>
+                        </>
+                    ) : (
+                        <>
+                            <span className="muted">Price</span>
+                            <strong>{formatPeso(price.amount)}</strong>
+                        </>
+                    )}
+                </div>
             )}
 
             {validTime && customDuration && !fixedLengths && (
@@ -415,7 +532,7 @@ function BookingForm({ draft, onDone }: { draft: BookingDraft; onDone: () => voi
                 </button>
                 <button
                     className="btn btn--primary"
-                    disabled={problems.length > 0 || !client.trim() || saving}
+                    disabled={problems.length > 0 || lookup.isLooking || saving}
                 >
                     {createState.isLoading || updateState.isLoading
                         ? "Saving…"

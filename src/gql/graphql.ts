@@ -6,13 +6,31 @@ export type Incremental<T> =
     T | { [P in keyof T]?: P extends " $fragmentName" | "__typename" ? T[P] : never };
 import { DocumentTypeDecoration } from "@graphql-typed-document-node/core";
 export type CreateBookingInput = {
-    client: string;
+    /** Required when the mobile is new */
+    clientFirstName?: string | null | undefined;
+    clientLastName?: string | null | undefined;
+    /** Any Philippine mobile format (0917 123 4567, +63 917…) or +<country code>…. Finds the client, or creates them when the number is new */
+    clientMobile: string;
     end: string;
+    isRequested?: boolean | null | undefined;
+    /** One promo per booking; case doesn’t matter */
+    promoCode?: string | null | undefined;
     roomId: string | number;
     /** Must have a price for the booking length on its date */
     serviceId: string | number;
     start: string;
     therapistId: string | number;
+};
+
+export type CreatePromoInput = {
+    code: string;
+    description?: string | null | undefined;
+    discountType: DiscountType;
+    isActive?: boolean | null | undefined;
+    serviceIds?: Array<string | number> | null | undefined;
+    validFrom: string;
+    validTo?: string | null | undefined;
+    value: number;
 };
 
 export type CreateRoomInput = {
@@ -33,6 +51,9 @@ export type CreateTherapistInput = {
     offDays?: Array<number> | null | undefined;
 };
 
+/** percent = value % off the price; amount = value pesos off (capped at the price) */
+export type DiscountType = "amount" | "percent";
+
 export type LoginInput = {
     email: string;
     password: string;
@@ -42,11 +63,13 @@ export type LoginInput = {
 export type Permission =
     | "createBooking"
     | "createExample"
+    | "createPromo"
     | "createRoom"
     | "createService"
     | "createTherapist"
     | "deleteBooking"
     | "deleteExample"
+    | "deletePromo"
     | "deleteRoom"
     | "deleteService"
     | "deleteTherapist"
@@ -55,12 +78,15 @@ export type Permission =
     | "manageRoles"
     | "manageUserAccess"
     | "readAuditLogs"
+    | "readClients"
     | "readReports"
     | "readRoles"
     | "readUsers"
     | "superAdmin"
     | "updateBooking"
+    | "updateClient"
     | "updateExample"
+    | "updatePromo"
     | "updateRoom"
     | "updateService"
     | "updateTherapist";
@@ -93,12 +119,39 @@ export type UnpricedReason = "noPrice" | "noService";
 
 /** Only the fields you send are changed; the result must still pass every rule */
 export type UpdateBookingInput = {
-    client?: string | null | undefined;
+    /** Used only when the mobile is new */
+    clientFirstName?: string | null | undefined;
+    clientLastName?: string | null | undefined;
+    /** Re-links the booking to this client */
+    clientMobile?: string | null | undefined;
     end?: string | null | undefined;
+    isRequested?: boolean | null | undefined;
+    /** "" removes the promo */
+    promoCode?: string | null | undefined;
     roomId?: string | number | null | undefined;
     serviceId?: string | number | null | undefined;
     start?: string | null | undefined;
     therapistId?: string | number | null | undefined;
+};
+
+/** Only the fields you send are changed; bookings show the new name and mobile */
+export type UpdateClientInput = {
+    firstName?: string | null | undefined;
+    lastName?: string | null | undefined;
+    mobile?: string | null | undefined;
+    notes?: string | null | undefined;
+};
+
+/** Only the fields you send change; validTo: null removes the end date. Once used, code, discountType, value and serviceIds can no longer change (PROMO_LOCKED). */
+export type UpdatePromoInput = {
+    code?: string | null | undefined;
+    description?: string | null | undefined;
+    discountType?: DiscountType | null | undefined;
+    isActive?: boolean | null | undefined;
+    serviceIds?: Array<string | number> | null | undefined;
+    validFrom?: string | null | undefined;
+    validTo?: string | null | undefined;
+    value?: number | null | undefined;
 };
 
 /** Only the fields you send are changed */
@@ -179,12 +232,139 @@ export type SessionQueryVariables = Exact<{ [key: string]: never }>;
 
 export type SessionQuery = { session: { effectivePerms: Array<Permission> } };
 
+export type ClientFieldsFragment = {
+    id: string;
+    mobile: string;
+    firstName: string;
+    lastName: string;
+    fullName: string;
+    notes: string;
+    createdAt: string;
+    stats: {
+        visits: number;
+        upcoming: number;
+        firstVisit: string | null;
+        lastVisit: string | null;
+        requested: number;
+        favouriteTherapistId: string | null;
+        favouriteTherapistName: string | null;
+    };
+};
+
+export type ClientsQueryVariables = Exact<{
+    search?: string | null | undefined;
+    page?: number | null | undefined;
+    limit?: number | null | undefined;
+}>;
+
+export type ClientsQuery = {
+    clients: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+        data: Array<{
+            id: string;
+            mobile: string;
+            firstName: string;
+            lastName: string;
+            fullName: string;
+            notes: string;
+            createdAt: string;
+            stats: {
+                visits: number;
+                upcoming: number;
+                firstVisit: string | null;
+                lastVisit: string | null;
+                requested: number;
+                favouriteTherapistId: string | null;
+                favouriteTherapistName: string | null;
+            };
+        }>;
+    };
+};
+
+export type ClientByMobileQueryVariables = Exact<{
+    mobile: string;
+}>;
+
+export type ClientByMobileQuery = {
+    clientByMobile: {
+        id: string;
+        mobile: string;
+        firstName: string;
+        lastName: string;
+        fullName: string;
+        notes: string;
+        createdAt: string;
+        stats: {
+            visits: number;
+            upcoming: number;
+            firstVisit: string | null;
+            lastVisit: string | null;
+            requested: number;
+            favouriteTherapistId: string | null;
+            favouriteTherapistName: string | null;
+        };
+    } | null;
+};
+
+export type ClientBookingsQueryVariables = Exact<{
+    clientId: string | number;
+    limit?: number | null | undefined;
+}>;
+
+export type ClientBookingsQuery = {
+    clientBookings: Array<{
+        id: string;
+        client: string;
+        clientId: string | null;
+        clientMobile: string | null;
+        isRequested: boolean;
+        promoId: string | null;
+        promoCode: string | null;
+        therapistId: string;
+        roomId: string;
+        serviceId: string | null;
+        start: string;
+        end: string;
+    }>;
+};
+
+export type UpdateClientMutationVariables = Exact<{
+    id: string | number;
+    input: UpdateClientInput;
+}>;
+
+export type UpdateClientMutation = {
+    updateClient: {
+        id: string;
+        mobile: string;
+        firstName: string;
+        lastName: string;
+        fullName: string;
+        notes: string;
+        createdAt: string;
+        stats: {
+            visits: number;
+            upcoming: number;
+            firstVisit: string | null;
+            lastVisit: string | null;
+            requested: number;
+            favouriteTherapistId: string | null;
+            favouriteTherapistName: string | null;
+        };
+    };
+};
+
 export type SalesLineFieldsFragment = {
     serviceId: string;
     serviceName: string;
     durationMin: number;
     unitPrice: number;
     bookings: number;
+    grossRevenue: number;
+    discounts: number;
     revenue: number;
 };
 
@@ -203,14 +383,26 @@ export type SalesReportQuery = {
         currency: string;
         includeUpcoming: boolean;
         generatedAt: string;
-        totals: { bookings: number; minutes: number; revenue: number; unpriced: number };
+        totals: {
+            bookings: number;
+            minutes: number;
+            grossRevenue: number;
+            discounts: number;
+            revenue: number;
+            unpriced: number;
+            requested: number;
+        };
         therapists: Array<{
             therapistId: string;
             therapistName: string;
             bookings: number;
             minutes: number;
+            grossRevenue: number;
+            discounts: number;
             revenue: number;
             unpriced: number;
+            requested: number;
+            requestRate: number;
             services: Array<{
                 serviceId: string;
                 serviceName: string;
@@ -223,6 +415,8 @@ export type SalesReportQuery = {
                 durationMin: number;
                 unitPrice: number;
                 bookings: number;
+                grossRevenue: number;
+                discounts: number;
                 revenue: number;
             }>;
         }>;
@@ -232,6 +426,8 @@ export type SalesReportQuery = {
             isActive: boolean;
             bookings: number;
             minutes: number;
+            grossRevenue: number;
+            discounts: number;
             revenue: number;
             unpriced: number;
             lines: Array<{
@@ -240,6 +436,8 @@ export type SalesReportQuery = {
                 durationMin: number;
                 unitPrice: number;
                 bookings: number;
+                grossRevenue: number;
+                discounts: number;
                 revenue: number;
             }>;
         }>;
@@ -253,6 +451,21 @@ export type SalesReportQuery = {
             serviceName: string | null;
             reason: UnpricedReason;
         }>;
+        promos: Array<{ promoId: string; code: string; bookings: number; discounts: number }>;
+        clients: {
+            uniqueClients: number;
+            newClients: number;
+            returningClients: number;
+            noClient: number;
+            top: Array<{
+                clientId: string;
+                name: string;
+                mobile: string;
+                bookings: number;
+                revenue: number;
+                totalVisits: number;
+            }>;
+        };
     };
 };
 
@@ -265,6 +478,11 @@ export type BookingsQuery = {
     bookings: Array<{
         id: string;
         client: string;
+        clientId: string | null;
+        clientMobile: string | null;
+        isRequested: boolean;
+        promoId: string | null;
+        promoCode: string | null;
         therapistId: string;
         roomId: string;
         serviceId: string | null;
@@ -281,6 +499,11 @@ export type CreateBookingMutation = {
     createBooking: {
         id: string;
         client: string;
+        clientId: string | null;
+        clientMobile: string | null;
+        isRequested: boolean;
+        promoId: string | null;
+        promoCode: string | null;
         therapistId: string;
         roomId: string;
         serviceId: string | null;
@@ -298,6 +521,11 @@ export type UpdateBookingMutation = {
     updateBooking: {
         id: string;
         client: string;
+        clientId: string | null;
+        clientMobile: string | null;
+        isRequested: boolean;
+        promoId: string | null;
+        promoCode: string | null;
         therapistId: string;
         roomId: string;
         serviceId: string | null;
@@ -311,6 +539,73 @@ export type DeleteBookingMutationVariables = Exact<{
 }>;
 
 export type DeleteBookingMutation = { deleteBooking: boolean };
+
+export type PromosQueryVariables = Exact<{
+    includeArchived?: boolean | null | undefined;
+}>;
+
+export type PromosQuery = {
+    promos: Array<{
+        id: string;
+        code: string;
+        description: string;
+        discountType: DiscountType;
+        value: number;
+        validFrom: string;
+        validTo: string | null;
+        serviceIds: Array<string>;
+        isActive: boolean;
+        timesUsed: number;
+        isLocked: boolean;
+    }>;
+};
+
+export type CreatePromoMutationVariables = Exact<{
+    input: CreatePromoInput;
+}>;
+
+export type CreatePromoMutation = {
+    createPromo: {
+        id: string;
+        code: string;
+        description: string;
+        discountType: DiscountType;
+        value: number;
+        validFrom: string;
+        validTo: string | null;
+        serviceIds: Array<string>;
+        isActive: boolean;
+        timesUsed: number;
+        isLocked: boolean;
+    };
+};
+
+export type UpdatePromoMutationVariables = Exact<{
+    id: string | number;
+    input: UpdatePromoInput;
+}>;
+
+export type UpdatePromoMutation = {
+    updatePromo: {
+        id: string;
+        code: string;
+        description: string;
+        discountType: DiscountType;
+        value: number;
+        validFrom: string;
+        validTo: string | null;
+        serviceIds: Array<string>;
+        isActive: boolean;
+        timesUsed: number;
+        isLocked: boolean;
+    };
+};
+
+export type DeletePromoMutationVariables = Exact<{
+    id: string | number;
+}>;
+
+export type DeletePromoMutation = { deletePromo: boolean };
 
 export type RoomsQueryVariables = Exact<{ [key: string]: never }>;
 
@@ -347,11 +642,30 @@ export type RoomFieldsFragment = { id: string; name: string; color: string };
 export type BookingFieldsFragment = {
     id: string;
     client: string;
+    clientId: string | null;
+    clientMobile: string | null;
+    isRequested: boolean;
+    promoId: string | null;
+    promoCode: string | null;
     therapistId: string;
     roomId: string;
     serviceId: string | null;
     start: string;
     end: string;
+};
+
+export type PromoFieldsFragment = {
+    id: string;
+    code: string;
+    description: string;
+    discountType: DiscountType;
+    value: number;
+    validFrom: string;
+    validTo: string | null;
+    serviceIds: Array<string>;
+    isActive: boolean;
+    timesUsed: number;
+    isLocked: boolean;
 };
 
 export type ServicePriceFieldsFragment = {
@@ -538,6 +852,29 @@ export class TypedDocumentString<TResult, TVariables>
         return this.value;
     }
 }
+export const ClientFieldsFragmentDoc = new TypedDocumentString(
+    `
+    fragment ClientFields on Client {
+  id
+  mobile
+  firstName
+  lastName
+  fullName
+  notes
+  createdAt
+  stats {
+    visits
+    upcoming
+    firstVisit
+    lastVisit
+    requested
+    favouriteTherapistId
+    favouriteTherapistName
+  }
+}
+    `,
+    { fragmentName: "ClientFields" },
+) as unknown as TypedDocumentString<ClientFieldsFragment, unknown>;
 export const SalesLineFieldsFragmentDoc = new TypedDocumentString(
     `
     fragment SalesLineFields on SalesLine {
@@ -546,6 +883,8 @@ export const SalesLineFieldsFragmentDoc = new TypedDocumentString(
   durationMin
   unitPrice
   bookings
+  grossRevenue
+  discounts
   revenue
 }
     `,
@@ -577,6 +916,11 @@ export const BookingFieldsFragmentDoc = new TypedDocumentString(
     fragment BookingFields on Booking {
   id
   client
+  clientId
+  clientMobile
+  isRequested
+  promoId
+  promoCode
   therapistId
   roomId
   serviceId
@@ -586,6 +930,24 @@ export const BookingFieldsFragmentDoc = new TypedDocumentString(
     `,
     { fragmentName: "BookingFields" },
 ) as unknown as TypedDocumentString<BookingFieldsFragment, unknown>;
+export const PromoFieldsFragmentDoc = new TypedDocumentString(
+    `
+    fragment PromoFields on Promo {
+  id
+  code
+  description
+  discountType
+  value
+  validFrom
+  validTo
+  serviceIds
+  isActive
+  timesUsed
+  isLocked
+}
+    `,
+    { fragmentName: "PromoFields" },
+) as unknown as TypedDocumentString<PromoFieldsFragment, unknown>;
 export const ServicePriceFieldsFragmentDoc = new TypedDocumentString(
     `
     fragment ServicePriceFields on ServicePrice {
@@ -705,6 +1067,104 @@ export const SessionDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<SessionQuery, SessionQueryVariables>;
+export const ClientsDocument = new TypedDocumentString(`
+    query Clients($search: String, $page: Int, $limit: Int) {
+  clients(search: $search, page: $page, limit: $limit) {
+    data {
+      ...ClientFields
+    }
+    page
+    limit
+    total
+    totalPages
+  }
+}
+    fragment ClientFields on Client {
+  id
+  mobile
+  firstName
+  lastName
+  fullName
+  notes
+  createdAt
+  stats {
+    visits
+    upcoming
+    firstVisit
+    lastVisit
+    requested
+    favouriteTherapistId
+    favouriteTherapistName
+  }
+}`) as unknown as TypedDocumentString<ClientsQuery, ClientsQueryVariables>;
+export const ClientByMobileDocument = new TypedDocumentString(`
+    query ClientByMobile($mobile: String!) {
+  clientByMobile(mobile: $mobile) {
+    ...ClientFields
+  }
+}
+    fragment ClientFields on Client {
+  id
+  mobile
+  firstName
+  lastName
+  fullName
+  notes
+  createdAt
+  stats {
+    visits
+    upcoming
+    firstVisit
+    lastVisit
+    requested
+    favouriteTherapistId
+    favouriteTherapistName
+  }
+}`) as unknown as TypedDocumentString<ClientByMobileQuery, ClientByMobileQueryVariables>;
+export const ClientBookingsDocument = new TypedDocumentString(`
+    query ClientBookings($clientId: ID!, $limit: Int) {
+  clientBookings(clientId: $clientId, limit: $limit) {
+    ...BookingFields
+  }
+}
+    fragment BookingFields on Booking {
+  id
+  client
+  clientId
+  clientMobile
+  isRequested
+  promoId
+  promoCode
+  therapistId
+  roomId
+  serviceId
+  start
+  end
+}`) as unknown as TypedDocumentString<ClientBookingsQuery, ClientBookingsQueryVariables>;
+export const UpdateClientDocument = new TypedDocumentString(`
+    mutation UpdateClient($id: ID!, $input: UpdateClientInput!) {
+  updateClient(id: $id, input: $input) {
+    ...ClientFields
+  }
+}
+    fragment ClientFields on Client {
+  id
+  mobile
+  firstName
+  lastName
+  fullName
+  notes
+  createdAt
+  stats {
+    visits
+    upcoming
+    firstVisit
+    lastVisit
+    requested
+    favouriteTherapistId
+    favouriteTherapistName
+  }
+}`) as unknown as TypedDocumentString<UpdateClientMutation, UpdateClientMutationVariables>;
 export const SalesReportDocument = new TypedDocumentString(`
     query SalesReport($period: ReportPeriod!, $date: String!, $includeUpcoming: Boolean) {
   salesReport(period: $period, date: $date, includeUpcoming: $includeUpcoming) {
@@ -718,16 +1178,23 @@ export const SalesReportDocument = new TypedDocumentString(`
     totals {
       bookings
       minutes
+      grossRevenue
+      discounts
       revenue
       unpriced
+      requested
     }
     therapists {
       therapistId
       therapistName
       bookings
       minutes
+      grossRevenue
+      discounts
       revenue
       unpriced
+      requested
+      requestRate
       services {
         serviceId
         serviceName
@@ -744,6 +1211,8 @@ export const SalesReportDocument = new TypedDocumentString(`
       isActive
       bookings
       minutes
+      grossRevenue
+      discounts
       revenue
       unpriced
       lines {
@@ -764,6 +1233,26 @@ export const SalesReportDocument = new TypedDocumentString(`
       serviceName
       reason
     }
+    promos {
+      promoId
+      code
+      bookings
+      discounts
+    }
+    clients {
+      uniqueClients
+      newClients
+      returningClients
+      noClient
+      top {
+        clientId
+        name
+        mobile
+        bookings
+        revenue
+        totalVisits
+      }
+    }
   }
 }
     fragment SalesLineFields on SalesLine {
@@ -772,6 +1261,8 @@ export const SalesReportDocument = new TypedDocumentString(`
   durationMin
   unitPrice
   bookings
+  grossRevenue
+  discounts
   revenue
 }`) as unknown as TypedDocumentString<SalesReportQuery, SalesReportQueryVariables>;
 export const BookingsDocument = new TypedDocumentString(`
@@ -783,6 +1274,11 @@ export const BookingsDocument = new TypedDocumentString(`
     fragment BookingFields on Booking {
   id
   client
+  clientId
+  clientMobile
+  isRequested
+  promoId
+  promoCode
   therapistId
   roomId
   serviceId
@@ -798,6 +1294,11 @@ export const CreateBookingDocument = new TypedDocumentString(`
     fragment BookingFields on Booking {
   id
   client
+  clientId
+  clientMobile
+  isRequested
+  promoId
+  promoCode
   therapistId
   roomId
   serviceId
@@ -813,6 +1314,11 @@ export const UpdateBookingDocument = new TypedDocumentString(`
     fragment BookingFields on Booking {
   id
   client
+  clientId
+  clientMobile
+  isRequested
+  promoId
+  promoCode
   therapistId
   roomId
   serviceId
@@ -824,6 +1330,68 @@ export const DeleteBookingDocument = new TypedDocumentString(`
   deleteBooking(id: $id)
 }
     `) as unknown as TypedDocumentString<DeleteBookingMutation, DeleteBookingMutationVariables>;
+export const PromosDocument = new TypedDocumentString(`
+    query Promos($includeArchived: Boolean) {
+  promos(includeArchived: $includeArchived) {
+    ...PromoFields
+  }
+}
+    fragment PromoFields on Promo {
+  id
+  code
+  description
+  discountType
+  value
+  validFrom
+  validTo
+  serviceIds
+  isActive
+  timesUsed
+  isLocked
+}`) as unknown as TypedDocumentString<PromosQuery, PromosQueryVariables>;
+export const CreatePromoDocument = new TypedDocumentString(`
+    mutation CreatePromo($input: CreatePromoInput!) {
+  createPromo(input: $input) {
+    ...PromoFields
+  }
+}
+    fragment PromoFields on Promo {
+  id
+  code
+  description
+  discountType
+  value
+  validFrom
+  validTo
+  serviceIds
+  isActive
+  timesUsed
+  isLocked
+}`) as unknown as TypedDocumentString<CreatePromoMutation, CreatePromoMutationVariables>;
+export const UpdatePromoDocument = new TypedDocumentString(`
+    mutation UpdatePromo($id: ID!, $input: UpdatePromoInput!) {
+  updatePromo(id: $id, input: $input) {
+    ...PromoFields
+  }
+}
+    fragment PromoFields on Promo {
+  id
+  code
+  description
+  discountType
+  value
+  validFrom
+  validTo
+  serviceIds
+  isActive
+  timesUsed
+  isLocked
+}`) as unknown as TypedDocumentString<UpdatePromoMutation, UpdatePromoMutationVariables>;
+export const DeletePromoDocument = new TypedDocumentString(`
+    mutation DeletePromo($id: ID!) {
+  deletePromo(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeletePromoMutation, DeletePromoMutationVariables>;
 export const RoomsDocument = new TypedDocumentString(`
     query Rooms {
   rooms {

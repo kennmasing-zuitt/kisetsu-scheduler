@@ -4,6 +4,8 @@ fragment SalesLineFields on SalesLine {
     durationMin
     unitPrice
     bookings
+    grossRevenue
+    discounts
     revenue
 }
 
@@ -19,16 +21,23 @@ query SalesReport($period: ReportPeriod!, $date: String!, $includeUpcoming: Bool
         totals {
             bookings
             minutes
+            grossRevenue
+            discounts
             revenue
             unpriced
+            requested
         }
         therapists {
             therapistId
             therapistName
             bookings
             minutes
+            grossRevenue
+            discounts
             revenue
             unpriced
+            requested
+            requestRate
             services {
                 serviceId
                 serviceName
@@ -45,6 +54,8 @@ query SalesReport($period: ReportPeriod!, $date: String!, $includeUpcoming: Bool
             isActive
             bookings
             minutes
+            grossRevenue
+            discounts
             revenue
             unpriced
             lines {
@@ -64,6 +75,26 @@ query SalesReport($period: ReportPeriod!, $date: String!, $includeUpcoming: Bool
             therapistName
             serviceName
             reason
+        }
+        promos {
+            promoId
+            code
+            bookings
+            discounts
+        }
+        clients {
+            uniqueClients
+            newClients
+            returningClients
+            noClient
+            top {
+                clientId
+                name
+                mobile
+                bookings
+                revenue
+                totalVisits
+            }
         }
     }
 }

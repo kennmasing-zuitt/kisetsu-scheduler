@@ -6,8 +6,9 @@ import type { SalesReport } from "@/mods/reports/types";
  * The sales report as an Excel workbook, built in the browser with ExcelJS from the report
  * already on screen. ExcelJS (~1 MB) is loaded only when someone exports.
  *
- * Sheets: Summary · By therapist (therapist × service counts) · By service & price ·
- * By hour / By day / By month · Unpriced (when there are any). Totals are live Excel formulas, so the
+ * Sheets: Summary · By therapist (therapist × service counts, requests, gross / discounts /
+ * net) · By service & price · By hour / By day / By month · Promos · Top clients · Unpriced
+ * (the last three only when there's something to show). Totals are live Excel formulas, so the
  * sheets stay correct if someone edits a number.
  */
 
@@ -90,9 +91,16 @@ function summarySheet(wb: Workbook, report: SalesReport) {
 
     const { totals } = report;
     const priced = totals.bookings - totals.unpriced;
+    const { clients } = report;
     const figures: [string, number, string][] = [
-        ["Revenue", totals.revenue, PESO],
+        ["Revenue (net)", totals.revenue, PESO],
+        ["Gross (at list prices)", totals.grossRevenue, PESO],
+        ["Promo discounts", totals.discounts, PESO],
         ["Services rendered", totals.bookings, "#,##0"],
+        ["Requested by name", totals.requested, "#,##0"],
+        ["Clients", clients.uniqueClients, "#,##0"],
+        ["New clients", clients.newClients, "#,##0"],
+        ["Returning clients", clients.returningClients, "#,##0"],
         ["Hours booked", totals.minutes / 60, "#,##0.0"],
         ["Average per service", priced > 0 ? totals.revenue / priced : 0, PESO],
         ["Without a price", totals.unpriced, "#,##0"],
@@ -120,14 +128,23 @@ function therapistSheet(wb: Workbook, report: SalesReport) {
         ...services.map((s) => s.serviceName),
         ...(hasNoService ? ["No service"] : []),
         "Total",
-        "Revenue",
+        "Requested",
+        "Request rate",
+        "Gross",
+        "Discounts",
+        "Revenue (net)",
     ];
     ws.columns = headers.map((h, i) => ({ width: i === 0 ? 24 : Math.max(12, h.length + 4) }));
     styleHeader(ws, ws.addRow(headers), 2);
 
     const countCols = services.length + (hasNoService ? 1 : 0);
     const totalCol = countCols + 2;
-    const revenueCol = countCols + 3;
+    const requestedCol = totalCol + 1;
+    const rateCol = totalCol + 2;
+    const grossCol = totalCol + 3;
+    const discountCol = totalCol + 4;
+    const netCol = totalCol + 5;
+    const L = colLetter;
     const first = 2;
 
     for (const t of report.therapists) {
@@ -136,70 +153,161 @@ function therapistSheet(wb: Workbook, report: SalesReport) {
         );
         if (hasNoService) counts.push(t.bookings - counted(t));
         const row = ws.addRow([t.therapistName, ...counts]);
+        const r = row.number;
         for (let c = 2; c <= countCols + 1; c++) row.getCell(c).numFmt = COUNT;
-        formula(
-            row.getCell(totalCol),
-            `SUM(B${row.number}:${colLetter(countCols + 1)}${row.number})`,
-            t.bookings,
-        );
+        formula(row.getCell(totalCol), `SUM(B${r}:${L(countCols + 1)}${r})`, t.bookings);
         row.getCell(totalCol).font = { bold: true };
-        row.getCell(revenueCol).value = t.revenue;
-        row.getCell(revenueCol).numFmt = PESO;
+        row.getCell(requestedCol).value = t.requested;
+        row.getCell(requestedCol).numFmt = COUNT;
+        formula(
+            row.getCell(rateCol),
+            `IF(${L(totalCol)}${r}=0,0,${L(requestedCol)}${r}/${L(totalCol)}${r})`,
+            t.requestRate,
+        );
+        row.getCell(rateCol).numFmt = "0%";
+        row.getCell(grossCol).value = t.grossRevenue;
+        row.getCell(discountCol).value = t.discounts;
+        formula(row.getCell(netCol), `${L(grossCol)}${r}-${L(discountCol)}${r}`, t.revenue);
+        for (const c of [grossCol, discountCol, netCol]) row.getCell(c).numFmt = PESO;
     }
 
     const last = ws.rowCount;
     const total = ws.addRow(["Total"]);
-    for (let c = 2; c <= revenueCol; c++) {
-        const col = colLetter(c);
-        const values = report.therapists.map((_, i) => ws.getRow(first + i).getCell(c).value);
+    const sumOf = (c: number) =>
+        report.therapists
+            .map((_, i) => ws.getRow(first + i).getCell(c).value)
+            .reduce<number>((sum, v) => sum + (typeof v === "number" ? v : 0), 0);
+    for (let c = 2; c <= netCol; c++) {
+        if (c === rateCol) {
+            formula(
+                total.getCell(c),
+                `IF(${L(totalCol)}${total.number}=0,0,${L(requestedCol)}${total.number}/${L(totalCol)}${total.number})`,
+                report.totals.bookings ? report.totals.requested / report.totals.bookings : 0,
+            );
+            total.getCell(c).numFmt = "0%";
+            continue;
+        }
         const result =
-            c === revenueCol
-                ? report.totals.revenue
-                : c === totalCol
-                  ? report.totals.bookings
-                  : values.reduce<number>((sum, v) => sum + (typeof v === "number" ? v : 0), 0);
-        formula(total.getCell(c), `SUM(${col}${first}:${col}${last})`, result);
-        total.getCell(c).numFmt = c === revenueCol ? PESO : COUNT;
+            c === totalCol
+                ? report.totals.bookings
+                : c === grossCol
+                  ? report.totals.grossRevenue
+                  : c === discountCol
+                    ? report.totals.discounts
+                    : c === netCol
+                      ? report.totals.revenue
+                      : sumOf(c);
+        formula(total.getCell(c), `SUM(${L(c)}${first}:${L(c)}${last})`, result);
+        total.getCell(c).numFmt = c >= grossCol ? PESO : COUNT;
     }
     styleTotal(total);
 }
 
 function serviceSheet(wb: Workbook, report: SalesReport) {
     const ws = wb.addWorksheet("By service & price", { views: [{ state: "frozen", ySplit: 1 }] });
-    ws.columns = [{ width: 22 }, { width: 14 }, { width: 14 }, { width: 12 }, { width: 16 }];
-    styleHeader(ws, ws.addRow(["Service", "Length (min)", "Unit price", "Services", "Revenue"]), 2);
+    ws.columns = [
+        { width: 22 },
+        { width: 14 },
+        { width: 14 },
+        { width: 12 },
+        { width: 16 },
+        { width: 14 },
+        { width: 16 },
+    ];
+    styleHeader(
+        ws,
+        ws.addRow([
+            "Service",
+            "Length (min)",
+            "Unit price",
+            "Services",
+            "Gross",
+            "Discounts",
+            "Net",
+        ]),
+        2,
+    );
 
-    // Line revenue = price × services; per-service and grand totals use SUBTOTAL so the grand
-    // total skips the per-service subtotals
+    // Gross = price × services, net = gross − discounts; per-service and grand totals use
+    // SUBTOTAL so the grand total skips the per-service subtotals
     for (const s of report.services.filter((x) => x.bookings > 0)) {
         const start = ws.rowCount + 1;
         for (const l of s.lines) {
             const row = ws.addRow([s.serviceName, l.durationMin, l.unitPrice, l.bookings]);
-            row.getCell(3).numFmt = PESO;
-            formula(row.getCell(5), `C${row.number}*D${row.number}`, l.revenue);
-            row.getCell(5).numFmt = PESO;
+            const r = row.number;
+            formula(row.getCell(5), `C${r}*D${r}`, l.grossRevenue);
+            row.getCell(6).value = l.discounts;
+            formula(row.getCell(7), `E${r}-F${r}`, l.revenue);
+            for (const c of [3, 5, 6, 7]) row.getCell(c).numFmt = PESO;
         }
         if (s.unpriced > 0) {
-            const row = ws.addRow([s.serviceName, "no price", null, s.unpriced, 0]);
+            const row = ws.addRow([s.serviceName, "no price", null, s.unpriced, 0, 0, 0]);
             row.getCell(2).font = { italic: true, color: { argb: "FFB42318" } };
-            row.getCell(5).numFmt = PESO;
+            for (const c of [5, 6, 7]) row.getCell(c).numFmt = PESO;
         }
         const end = ws.rowCount;
         const sub = ws.addRow([`${s.serviceName} total`]);
         formula(sub.getCell(4), `SUBTOTAL(9,D${start}:D${end})`, s.bookings);
-        formula(sub.getCell(5), `SUBTOTAL(9,E${start}:E${end})`, s.revenue);
-        sub.getCell(5).numFmt = PESO;
+        formula(sub.getCell(5), `SUBTOTAL(9,E${start}:E${end})`, s.grossRevenue);
+        formula(sub.getCell(6), `SUBTOTAL(9,F${start}:F${end})`, s.discounts);
+        formula(sub.getCell(7), `SUBTOTAL(9,G${start}:G${end})`, s.revenue);
+        for (const c of [5, 6, 7]) sub.getCell(c).numFmt = PESO;
         styleTotal(sub);
     }
 
     const end = ws.rowCount;
     const grand = ws.addRow(["Grand total"]);
-    const priced = report.services.reduce((sum, s) => sum + s.bookings, 0);
-    formula(grand.getCell(4), `SUBTOTAL(9,D2:D${end})`, priced);
-    formula(grand.getCell(5), `SUBTOTAL(9,E2:E${end})`, report.totals.revenue);
-    grand.getCell(5).numFmt = PESO;
+    const rendered = report.services.reduce((sum, s) => sum + s.bookings, 0);
+    formula(grand.getCell(4), `SUBTOTAL(9,D2:D${end})`, rendered);
+    formula(grand.getCell(5), `SUBTOTAL(9,E2:E${end})`, report.totals.grossRevenue);
+    formula(grand.getCell(6), `SUBTOTAL(9,F2:F${end})`, report.totals.discounts);
+    formula(grand.getCell(7), `SUBTOTAL(9,G2:G${end})`, report.totals.revenue);
+    for (const c of [5, 6, 7]) grand.getCell(c).numFmt = PESO;
     styleTotal(grand);
     grand.font = { bold: true, size: 12 };
+}
+
+function promoSheet(wb: Workbook, report: SalesReport) {
+    if (report.promos.length === 0) return;
+    const ws = wb.addWorksheet("Promos", { views: [{ state: "frozen", ySplit: 1 }] });
+    ws.columns = [{ width: 20 }, { width: 12 }, { width: 18 }];
+    styleHeader(ws, ws.addRow(["Code", "Bookings", "Discounts given"]), 2);
+    for (const p of report.promos) {
+        const row = ws.addRow([p.code, p.bookings, p.discounts]);
+        row.getCell(3).numFmt = PESO;
+    }
+    const end = ws.rowCount;
+    const total = ws.addRow(["Total"]);
+    formula(
+        total.getCell(2),
+        `SUM(B2:B${end})`,
+        report.promos.reduce((n, p) => n + p.bookings, 0),
+    );
+    formula(total.getCell(3), `SUM(C2:C${end})`, report.totals.discounts);
+    total.getCell(3).numFmt = PESO;
+    styleTotal(total);
+}
+
+function clientSheet(wb: Workbook, report: SalesReport) {
+    const { clients } = report;
+    if (clients.uniqueClients === 0) return;
+    const ws = wb.addWorksheet("Top clients", { views: [{ state: "frozen", ySplit: 1 }] });
+    ws.columns = [{ width: 24 }, { width: 18 }, { width: 12 }, { width: 16 }, { width: 18 }];
+    styleHeader(
+        ws,
+        ws.addRow(["Client", "Mobile", "Bookings", "Revenue (net)", "Visits (all time)"]),
+        3,
+    );
+    for (const c of clients.top) {
+        const row = ws.addRow([c.name, c.mobile, c.bookings, c.revenue, c.totalVisits]);
+        row.getCell(4).numFmt = PESO;
+    }
+    ws.addRow([]);
+    ws.addRow([
+        `${clients.uniqueClients} clients in the period: ${clients.newClients} new, ` +
+            `${clients.returningClients} returning` +
+            (clients.noClient ? `; ${clients.noClient} bookings without a client` : ""),
+    ]).font = { italic: true, color: { argb: "FF667085" } };
 }
 
 function seriesSheet(wb: Workbook, report: SalesReport) {
@@ -271,11 +379,15 @@ export async function buildSalesWorkbook(report: SalesReport): Promise<Workbook>
     wb.creator = "Kisetsu Scheduler";
     wb.created = new Date();
     wb.title = `Sales report ${rangeLabel(report)}`;
+    // Have Excel recompute every formula on open, so cached results never go stale or blank
+    wb.calcProperties.fullCalcOnLoad = true;
 
     summarySheet(wb, report);
     therapistSheet(wb, report);
     serviceSheet(wb, report);
     seriesSheet(wb, report);
+    promoSheet(wb, report);
+    clientSheet(wb, report);
     unpricedSheet(wb, report);
 
     // Print landscape, one page wide; table sheets repeat their header row on every page

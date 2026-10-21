@@ -1,0 +1,21 @@
+query Promos($includeArchived: Boolean) {
+    promos(includeArchived: $includeArchived) {
+        ...PromoFields
+    }
+}
+
+mutation CreatePromo($input: CreatePromoInput!) {
+    createPromo(input: $input) {
+        ...PromoFields
+    }
+}
+
+mutation UpdatePromo($id: ID!, $input: UpdatePromoInput!) {
+    updatePromo(id: $id, input: $input) {
+        ...PromoFields
+    }
+}
+
+mutation DeletePromo($id: ID!) {
+    deletePromo(id: $id)
+}
