@@ -3,6 +3,8 @@
     "version": "0.1.0",
     "private": true,
     "description": "Next.js + React + Redux Toolkit boilerplate with FullCalendar, wired for the express-typescript-graphql-boilerplate-server auth API",
+    "license": "SEE LICENSE IN LICENSE",
+    "author": "KENNETH MARVIN DE GUIA MASING <kennethmasing@gmail.com>",
     "scripts": {
         "dev": "next dev -p 2400",
         "build": "next build",

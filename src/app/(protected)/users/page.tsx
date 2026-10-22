@@ -93,6 +93,8 @@ export default function UsersPage() {
                                                     onClick={async () => {
                                                         try {
                                                             await resetTwoFactor(u.id).unwrap();
+                                                        } catch {
+                                                            // shown from the mutation state above
                                                         } finally {
                                                             setConfirming(null);
                                                         }

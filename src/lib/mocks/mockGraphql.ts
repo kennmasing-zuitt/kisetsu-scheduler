@@ -697,7 +697,14 @@ export async function mockGraphql(
             if (!token) return { error: { message: "Not authenticated", code: "UNAUTHENTICATED" } };
             return {
                 data: {
-                    users: { data: users, page: 1, limit: 20, total: users.length, totalPages: 1 },
+                    // A copy: RTK Query freezes what it caches, and the mock keeps changing its own list
+                    users: {
+                        data: structuredClone(users),
+                        page: 1,
+                        limit: 20,
+                        total: users.length,
+                        totalPages: 1,
+                    },
                 },
             };
         case "Therapists":

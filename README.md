@@ -301,3 +301,7 @@ set `NEXT_PUBLIC_FULLCALENDAR_LICENSE_KEY` to a commercial key before using it i
 3. Put its UI, state and types in `src/mods/<name>/`. For data, write the operation in
    `src/mods/<name>/graphql/<name>.graphql`, run `npm run codegen`, then add an endpoint in
    `src/mods/<name>/<name>Api.ts` with `baseApi.injectEndpoints` using the generated `<Name>Document`.
+
+## License
+
+Proprietary. Copyright (c) 2026 KENNETH MARVIN DE GUIA MASING. See [LICENSE](LICENSE).
